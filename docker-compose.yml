@@ -1,0 +1,21 @@
+# Local full stack:  docker compose up --build   (website: run `npm run dev` in client/)
+# Needs JWT_ACCESS_SECRET and JWT_REFRESH_SECRET in your shell or a root .env file.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes: [mongo_data:/data/db]
+    ports: ["27017:27017"]
+  api:
+    build: ./server
+    restart: unless-stopped
+    depends_on: [mongo]
+    ports: ["4000:4000"]
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongo:27017/smart_tourist_safety
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+volumes:
+  mongo_data:

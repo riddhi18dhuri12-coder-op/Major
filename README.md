@@ -1,0 +1,122 @@
+# Smart Tourist Safety Monitoring & Incident Response System (MERN)
+
+A full-stack platform with four portals, built on the UI design you provided:
+
+| Portal | Who | What they do |
+|---|---|---|
+| **Tourist** | travellers | share GPS, see safety zones, press **SOS**, report problems, check in "I'm Safe", start independent trips, verify identity, hold a **Digital Tourist ID** |
+| **Travel Agency** (+ guides) | agencies | register tourists & trips, assign guides, review identity verification, watch a live map and alerts |
+| **Authority** | tourism police / control room | draw safety zones, monitor risk, dispatch response units, audit log, verification ledger |
+| **Emergency Response** | police / rescue / medical units | receive assigned incidents, start response → arrive → resolve, share position |
+
+```
+smart-tourist-safety-mern/
+  server/   Node + Express + MongoDB (Mongoose) + Socket.IO API      (44 automated tests)
+  client/   React 19 + Vite + Tailwind 4 + Leaflet, installable PWA   (19 end-to-end UI tests)
+  docker-compose.yml   API + MongoDB for local use
+```
+
+## Run it on Windows
+
+You need **Node 20+** and a MongoDB database (free: <https://www.mongodb.com/atlas> → create a cluster,
+add a database user, allow your IP, copy the `mongodb+srv://…` string. Or install MongoDB Community locally).
+
+**Terminal 1 — API**
+```powershell
+cd server
+npm install
+copy .env.example .env
+```
+Edit `.env`: paste your `MONGODB_URI`, and generate the two secrets (run the command twice):
+```powershell
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+→ put the results into `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`. Then:
+```powershell
+npm run seed      # demo data
+npm run dev       # API on http://localhost:4000
+```
+
+**Terminal 2 — website**
+```powershell
+cd client
+npm install
+npm run dev       # http://localhost:5173
+```
+
+Open <http://localhost:5173> and sign in (password for all demo accounts: `test1234`):
+
+| Sign in as | Email |
+|---|---|
+| Tourist (verified) | `tourist@test.com` |
+| Travel Agency | `company@test.com` |
+| Tour Guide | `guide@test.com` |
+| Authority | `authority@test.com` |
+| Response Team | `responder@test.com` (also `police@test.com`, `medical@test.com`) |
+
+`aarav@test.com` / `sara@test.com` are tourists who have not activated yet (use **Tourist activation** on the login page with their Tourist ID; the IDs are printed by `npm run seed`). Aarav also has a verification request waiting for the agency.
+
+### Try the whole flow (5 minutes)
+1. Sign in as the **tourist** → *Share my location* (allow the browser prompt) → press **SOS**.
+2. In another window sign in as **authority** → the SOS appears live → open it → **Dispatch** the nearest unit.
+3. In a third window sign in as the **response team** (`responder@test.com`) → *Active Incidents* → *Start response → Mark arrival → Mark resolved*.
+4. Back as the tourist: the report timeline updated live and the status returns to Safe.
+5. As **authority** → *Safety Zones*: click the map to draw a new danger zone. Move a tourist into it to see the warning.
+
+> **Phones:** browsers only allow GPS on `https://` or `localhost`. To test on a phone, deploy the app
+> (below) or use a tunnel such as Cloudflare Tunnel / ngrok.
+
+## Tests
+```powershell
+cd server ; npm test     # 44 tests: auth, tenant isolation, roles, SOS, zones, risk, dispatch, ledger, sockets
+cd client ; npm test     # 19 tests: drives the real UI against the real API (starts its own server)
+```
+Both need a MongoDB to talk to: set `TEST_MONGODB_URI` (e.g. `mongodb://127.0.0.1:27017`); a throwaway database is created and dropped.
+
+## How the main features work
+
+**Zones & geofencing.** Authorities draw circle/polygon zones (safe, caution, danger, restricted, rest point).
+Each location update is matched against them (overlaps → the most restrictive wins). Entering a danger/restricted
+zone warns the tourist once and alerts their agency and the authorities.
+
+**Risk engine** (`server/src/services/risk.js`). A transparent rule-based score 0-100 (LOW/MEDIUM/HIGH/CRITICAL) from:
+zone type, night time, how long the tourist has been stationary, silence (no GPS), overdue independent travel,
+missed check-ins, nearby recent incidents, active SOS. Context matters: resting at a known **rest point** is normal;
+the same inactivity in a danger zone at night is not. Every score comes with its reasons ("Why this risk level").
+A high score raises an *attention* alert — **only the SOS button creates an emergency**.
+
+**Incident workflow.** `NEW → ACKNOWLEDGED (assigned) → RESPONDING → ON_SITE → RESOLVED` (or `FALSE_ALARM`),
+with a full timeline. Dispatch lists available units nearest-first; a unit can't be double-booked; responders only see
+and move *their own* incidents and receive the tourist's emergency contacts.
+
+**Verification & Digital ID.** Tourists submit a document (foreign tourists: passport + valid visa). The agency approves
+or rejects; approval issues `STID-2026-0001` and writes a proof block to a hash-linked ledger. Only hashes are stored —
+never the document number — and the ledger detects tampering (shown on Authority → Analytics).
+
+**Offline.** An SOS or check-in sent without signal is saved on the device and sent automatically when you're back online;
+safety zones stay available offline (service worker, production build).
+
+**Background monitoring** (every 60 s, safe with several servers): overdue independent travel, location silence,
+missed "I'm Safe" check-ins (12 h by default; configurable in `.env`).
+
+## Honest limits of this prototype
+- **Verification is simulated.** There's no government/Aadhaar/DigiLocker lookup; an agency reviews what the tourist typed.
+- **The "blockchain" is a hash chain in your own database** (tamper-evident, not decentralised). The record hashes could later be anchored on a public chain.
+- **Risk scoring is rule-based, not machine learning.** It is explainable and testable; the input/output shape would let you swap in an ML service later.
+- **Maps** use OpenStreetMap tiles; the *Safer route check* uses the free public OSRM demo server (fine for demos, not for production traffic).
+- **Sessions** are stored in the browser's localStorage (15-minute access token + rotating refresh token). A production hardening step would move the refresh token to an `httpOnly` cookie.
+- **SMS / push notifications** are not included yet (alerts are in-app and live over sockets).
+- "Night" rules assume India Standard Time.
+- Guides see all of their company's tourists and alerts.
+
+## Deploying
+- **API** → any host with a long-running Node process (Render, Railway, Fly.io, a VPS). *Not* Vercel/Netlify functions
+  (Socket.IO and the scheduler need a persistent server). `server/Dockerfile` is included. Set `NODE_ENV=production`,
+  `TRUST_PROXY=1`, `CORS_ORIGINS=https://your-frontend`, your Atlas `MONGODB_URI` and the two JWT secrets.
+- **Website** → Vercel / Netlify / Cloudflare Pages: `npm run build`, publish `client/dist`, set `VITE_API_ORIGIN=https://your-api`
+  at build time, and add a rewrite of all paths to `/index.html` (single-page app).
+- Several API instances → add the Socket.IO Redis adapter so live events reach every instance (the scheduler is already lock-protected).
+
+## Roadmap (not built yet)
+SMS/push alerts · ML risk model service · real identity verification provider · multilingual UI · heat-maps & exportable reports ·
+refresh token in `httpOnly` cookie · per-guide tourist scoping.

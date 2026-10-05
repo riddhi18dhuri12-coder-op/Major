@@ -1,0 +1,11 @@
+{
+  "name": "Smart Tourist Safety",
+  "short_name": "TouristSafe",
+  "description": "Tourist safety monitoring, SOS and incident response",
+  "start_url": "/tourist",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
