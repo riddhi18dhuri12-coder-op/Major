@@ -181,3 +181,30 @@ describe('authority and response team', () => {
     expect(screen.getByText('Incident Assigned')).toBeInTheDocument()
   })
 })
+
+describe('planned route / deviation monitoring', () => {
+  test('agency sets a planned route on a trip (road service offline -> straight-line fallback)', async () => {
+    const realFetch = globalThis.fetch
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation((url, opts) => (String(url).includes('project-osrm.org') ? Promise.reject(new Error('offline')) : realFetch(url, opts)))
+    try {
+      await signIn('company', 'company@test.com', 'Agency Dashboard')
+      await navTo('Trips')
+      fireEvent.click(await screen.findByText('Maharashtra Explorer', { selector: 'b' }))
+      expect(await screen.findByText(/No planned route yet/)).toBeInTheDocument()
+
+      fireEvent.click(await screen.findByText('map-click')) // start
+      fireEvent.click(screen.getByText('map-click')) // destination
+      const save = await screen.findByRole('button', { name: /Save planned route/ }, { timeout: 5000 })
+      fireEvent.change(screen.getByLabelText(/Alert agency at/), { target: { value: '800' } })
+      fireEvent.click(save)
+      expect(await screen.findByText(/Planned route saved/)).toBeInTheDocument()
+      expect(await screen.findByText(/Warning at 200 m, deviation alert at 800 m/)).toBeInTheDocument()
+    } finally { spy.mockRestore() }
+  })
+
+  test('tourist sees the planned route panel on My Journey', async () => {
+    await signIn('tourist', 'tourist@test.com', /Welcome, Riddhi/)
+    await navTo('My Journey')
+    expect(await screen.findByText(/stay on the highlighted route/i)).toBeInTheDocument()
+  })
+})

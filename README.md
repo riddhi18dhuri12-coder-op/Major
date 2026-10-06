@@ -93,11 +93,24 @@ and move *their own* incidents and receive the tourist's emergency contacts.
 or rejects; approval issues `STID-2026-0001` and writes a proof block to a hash-linked ledger. Only hashes are stored —
 never the document number — and the ledger detects tampering (shown on Authority → Analytics).
 
+**Digital ID validity (visit-only).** An ID is valid only for the visit: from the earliest trip start to the end of the last trip
+day (India time), capped by the visa expiry for foreign tourists, and ended early if the trip is marked COMPLETED. Status is
+`PENDING → ACTIVE → EXPIRED`; the scheduler flips it automatically, changing trip dates re-syncs it (extending a trip renews an
+expired ID), and every expiry/renewal is written to the proof ledger. A checkpoint lookup (`GET /api/verification/proof/:digitalId`)
+returns `valid: true` only while the identity is verified, the ledger is intact **and** the visit is in progress.
+
+**Route deviation.** The agency sets a planned route on a trip (click start + destination; the road route comes from OSRM, with a
+straight-line fallback). While the trip is ACTIVE every GPS update is measured against that line: under 200 m = on route,
+200–500 m = *warning* (tourist only), beyond 500 m = *deviation* (thresholds are per trip). A deviation needs two consecutive
+readings and the GPS accuracy radius is credited back (max 100 m), so one noisy fix doesn't raise an alarm. A confirmed deviation
+creates one `ROUTE_DEVIATION` incident per episode (updated when the tourist returns, closed by a human), alerts the agency and
+authority, and adds an explained factor to the risk score.
+
 **Offline.** An SOS or check-in sent without signal is saved on the device and sent automatically when you're back online;
 safety zones stay available offline (service worker, production build).
 
 **Background monitoring** (every 60 s, safe with several servers): overdue independent travel, location silence,
-missed "I'm Safe" check-ins (12 h by default; configurable in `.env`).
+missed "I'm Safe" check-ins (12 h by default; configurable in `.env`), and Digital ID expiry.
 
 ## Honest limits of this prototype
 - **Verification is simulated.** There's no government/Aadhaar/DigiLocker lookup; an agency reviews what the tourist typed.
@@ -106,7 +119,8 @@ missed "I'm Safe" check-ins (12 h by default; configurable in `.env`).
 - **Maps** use OpenStreetMap tiles; the *Safer route check* uses the free public OSRM demo server (fine for demos, not for production traffic).
 - **Sessions** are stored in the browser's localStorage (15-minute access token + rotating refresh token). A production hardening step would move the refresh token to an `httpOnly` cookie.
 - **SMS / push notifications** are not included yet (alerts are in-app and live over sockets).
-- "Night" rules assume India Standard Time.
+- "Night" rules and ID-validity days assume India Standard Time.
+- Route deviation compares against a planned **road route** between two points; multi-stop or off-road itineraries need more route points than the editor currently offers.
 - Guides see all of their company's tourists and alerts.
 
 ## Deploying

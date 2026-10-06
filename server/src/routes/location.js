@@ -44,8 +44,8 @@ router.post("/", requireRole("tourist"), locationLimiter, async (req, res) => {
   emitToAuthority("location:update", update);
 
   // geofencing + risk; the tourist gets back their current zone, risk and any warnings
-  const safety = await processLocation(tourist, { latitude: b.latitude, longitude: b.longitude });
-  res.status(201).json({ ok: true, zone: safety.zone, risk: safety.risk, warnings: safety.warnings });
+  const safety = await processLocation(tourist, { latitude: b.latitude, longitude: b.longitude, accuracy: b.accuracy });
+  res.status(201).json({ ok: true, zone: safety.zone, risk: safety.risk, route: safety.route, warnings: safety.warnings });
 });
 
 // Company/guide: location history for one tourist

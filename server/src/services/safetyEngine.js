@@ -6,6 +6,10 @@ const { activeZones } = require("./zones");
 const { notify } = require("./notify");
 const { emitToCompany, emitToAuthority, emitToTourist } = require("./realtime");
 const { pub } = require("../utils/serialize");
+const { checkRoute } = require("./routeDeviation");
+const logger = require("../utils/logger");
+
+const ROUTE_STATE_FRESH_MS = 30 * 60_000; // an old route comparison says nothing about where the tourist is now
 
 const OPEN_STATES = ["NEW", "ACKNOWLEDGED", "RESPONDING", "ON_SITE"];
 const WARN_ZONES = new Set(["DANGER", "RESTRICTED"]);
@@ -25,6 +29,7 @@ async function refreshRisk(tourist, { zone, now = new Date() } = {}) {
     TravelSession.exists({ tourist_id: tourist._id, status: "OVERDUE" }),
     here ? Incident.countDocuments({ company_id: tourist.company_id, created_at: { $gt: new Date(now - 7 * 86400_000) }, type: { $ne: "SOS" }, latitude: { $ne: null } }) : 0,
   ]);
+  const routeFresh = tourist.route_state?.updated_at && now - new Date(tourist.route_state.updated_at) < ROUTE_STATE_FRESH_MS;
   const r = assessRisk({
     zone: here,
     atRestPoint: zones.some((z) => z.type === "REST_POINT" && tourist.last_location?.latitude != null && zonesAt(tourist.last_location, [z]).length),
@@ -35,6 +40,7 @@ async function refreshRisk(tourist, { zone, now = new Date() } = {}) {
     overdueTravel: !!overdueTravel,
     missedCheckIn: tourist.last_check_in_at ? now - tourist.last_check_in_at > env.CHECKIN_INTERVAL_HOURS * 3600_000 : false,
     nearbyIncidents: Math.min(nearby, 3),
+    ...(routeFresh && { routeLevel: tourist.route_state.level, routeDistanceM: tourist.route_state.distance_m }),
   });
   const changed = r.level !== tourist.risk?.level;
   await Tourist.updateOne({ _id: tourist._id }, { risk: { ...r, updated_at: now } });
@@ -64,6 +70,15 @@ async function processLocation(tourist, point) {
   } else if (entered && zone.type === "CAUTION") {
     out.warnings.push(`Caution zone: ${zone.name}`);
     emitToTourist(tourist._id, "zone:warning", { zone: zoneRef(zone), message: out.warnings[0] });
+  }
+
+  // planned-route check (must run before the risk refresh so the risk score sees it); never blocks location updates
+  try {
+    out.route = await checkRoute(tourist, point, point.accuracy);
+    if (out.route?.warning) out.warnings.push(out.route.warning);
+  } catch (err) {
+    logger.error({ err, tourist: String(tourist._id) }, "route deviation check failed");
+    out.route = null;
   }
 
   const fresh = await Tourist.findById(tourist._id);

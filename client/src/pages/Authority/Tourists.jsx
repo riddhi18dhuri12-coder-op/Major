@@ -24,6 +24,7 @@ export default function Tourists() {
                         { title: 'Status', render: (t) => <StatusBadge value={t.status} /> },
                         { title: 'Zone', render: (t) => t.current_zone?.name || '—' },
                         { title: 'Verified', render: (t) => <StatusBadge value={t.verification_status || 'NOT_SUBMITTED'} /> },
+                        { title: 'ID validity', render: (t) => (t.id_validity ? <StatusBadge value={t.id_validity.status} /> : '—') },
                         { title: 'Last location', render: (t) => timeAgo(t.last_location?.recorded_at) },
                     ]} />
                 )}
@@ -31,7 +32,7 @@ export default function Tourists() {
             {sel && (
                 <Modal wide title={sel.name} onClose={() => setSel(null)}>
                     <div className="space-y-4 text-sm">
-                        <div className="flex flex-wrap gap-2"><StatusBadge value={sel.risk?.level || 'LOW'} /><StatusBadge value={sel.status} /><StatusBadge value={sel.verification_status || 'NOT_SUBMITTED'} /></div>
+                        <div className="flex flex-wrap gap-2"><StatusBadge value={sel.risk?.level || 'LOW'} /><StatusBadge value={sel.status} /><StatusBadge value={sel.verification_status || 'NOT_SUBMITTED'} />{sel.id_validity && <span className="flex items-center gap-1 text-xs text-slate-500">ID <StatusBadge value={sel.id_validity.status} /></span>}</div>
                         <div>
                             <p className="mb-1 font-medium text-slate-300">Why this risk level</p>
                             <ul className="list-disc pl-5 text-slate-400">{(sel.risk?.factors?.length ? sel.risk.factors : ['No risk factors detected']).map((f) => <li key={f}>{f}</li>)}</ul>

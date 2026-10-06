@@ -5,6 +5,7 @@ import { Panel, Table, Button, Modal, Field, Input, Select, StatusBadge, Loading
 import { api } from '../../lib/api'
 import { useLoad } from '../../hooks/useLoad'
 import { useAuth } from '../../lib/auth'
+import RouteEditor from '../../components/RouteEditor'
 
 function NewTrip({ guides, onClose, onDone }) {
     const toast = useToast()
@@ -45,7 +46,7 @@ export function TripList() {
                     <Table rows={trips.data} empty="No trips yet." onRowClick={(t) => navigate(`/agency/trips/${t.id}`)} columns={[
                         { title: 'Trip', render: (t) => <b className="text-slate-200">{t.name}</b> },
                         { title: 'Dates', render: (t) => `${t.start_date || '—'} → ${t.end_date || '—'}` },
-                        { title: 'Route', render: (t) => `${t.start_location || '—'} → ${t.end_location || '—'}` },
+                        { title: 'Route', render: (t) => <span>{`${t.start_location || '—'} → ${t.end_location || '—'}`}{t.planned_route?.point_count >= 2 && <span className="ml-2 text-xs text-emerald-400" title="A planned route is set; deviations are monitored">🧭 monitored</span>}</span> },
                         { title: 'Tourists', key: 'tourist_count' },
                         { title: 'Guide', render: (t) => t.guide_name || 'Unassigned' },
                         { title: 'Status', render: (t) => <StatusBadge value={t.status} /> },
@@ -93,6 +94,8 @@ export function TripDetail() {
                     </div>
                 </Panel>
             )}
+
+            {(user.role === 'company' || t.planned_route?.point_count >= 2) && <RouteEditor key={t.planned_route?.set_at || 'none'} trip={t} readOnly={user.role !== 'company'} onChanged={trip.reload} />}
 
             <Panel className="mt-6" title={`Tourists on this trip (${t.tourists.length})`}>
                 <Table rows={t.tourists} empty="No tourists yet. Add them from the Tourists page." columns={[

@@ -4,6 +4,9 @@ const env = require("./config/env");
 const { connectDb, disconnectDb } = require("./config/db");
 const M = require("./models");
 
+// demo trip runs from yesterday to a week from now, so the seeded Digital ID is valid whenever you run the seed
+const dayOffset = (n) => new Date(Date.now() + 330 * 60_000 + n * 86_400_000).toISOString().slice(0, 10);
+
 async function seed() {
   if (env.isProd) throw new Error("Refusing to seed demo data in production");
   await connectDb();
@@ -19,7 +22,7 @@ async function seed() {
   const guide = await M.Guide.create({ company_id: company._id, name: "Rahul Sharma", email: "guide@test.com", phone: "9000000002", password_hash: hash });
   const trip = await M.Trip.create({
     company_id: company._id, name: "Maharashtra Explorer", description: "7-day Maharashtra tour (seed data)",
-    start_date: "2026-10-10", end_date: "2026-10-17", start_location: "Mumbai", end_location: "Pune", guide_id: guide._id, status: "ACTIVE",
+    start_date: dayOffset(-1), end_date: dayOffset(7), start_location: "Mumbai", end_location: "Pune", guide_id: guide._id, status: "ACTIVE",
   });
 
   const tourists = [];
@@ -56,6 +59,7 @@ async function seed() {
   const block = await appendProof({ tourist_id: riddhi._id, digital_id: riddhi.digital_id, document_hash, verified_at: new Date() });
   riddhi.verification = { status: "VERIFIED", document_type: "AADHAAR", document_last4: "1234", document_hash, submitted_at: new Date(), reviewed_at: new Date(), proof_hash: block.block_hash };
   await riddhi.save();
+  await require("./services/idValidity").syncIdValidity(riddhi._id); // visit-only validity window from the trip dates
   const aarav = tourists[1];
   aarav.verification = { status: "PENDING", document_type: "AADHAAR", document_last4: "9876", document_hash: hashDocument("AADHAAR", "555566669876"), submitted_at: new Date() };
   await aarav.save();

@@ -6,6 +6,9 @@ const { pub, pubList } = require("../utils/serialize");
 const { oid } = require("../utils/ids");
 const { bad, conflict, notFound, forbidden } = require("../utils/errors");
 const { nextSeq } = require("../models");
+const { syncMany } = require("../services/idValidity");
+const { audit } = require("../services/audit");
+const { DEFAULTS: ROUTE_DEFAULTS } = require("../services/routeDeviation");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -47,7 +50,7 @@ router.get("/", async (req, res) => {
     filter = { company_id };
     if (role === "guide") filter.guide_id = id;
   }
-  const trips = await Trip.find(filter).sort({ created_at: -1 }).limit(500);
+  const trips = await Trip.find(filter).select("-planned_route.points").sort({ created_at: -1 }).limit(500); // route points are only sent with the single-trip view
   const [names, counts] = await Promise.all([
     withGuideNames(trips),
     TripMember.aggregate([{ $match: { trip_id: { $in: trips.map((t) => t._id) } } }, { $group: { _id: "$trip_id", n: { $sum: 1 } } }]),
@@ -84,8 +87,10 @@ router.put("/:id", requireRole("company"), async (req, res) => {
   if (!trip) throw notFound("Trip not found");
   if (b.guide_id !== undefined) b.guide_id = await resolveGuide(b.guide_id, req.user.company_id);
   const activating = b.status === "ACTIVE" && trip.status !== "ACTIVE";
+  const windowChanged = ["start_date", "end_date", "status"].some((k) => b[k] !== undefined && b[k] !== trip[k]);
   trip.set(b);
   await trip.save();
+  if (windowChanged) await syncMany(await TripMember.distinct("tourist_id", { trip_id: trip._id })); // ID validity follows the trip dates
   if (activating) {
     // the "I'm Safe" clock starts when the trip does
     const ids = await TripMember.distinct("tourist_id", { trip_id: trip._id });
@@ -107,13 +112,49 @@ router.post("/:id/tourists", requireRole("company"), async (req, res) => {
     tourist = await Tourist.create({ company_id: req.user.company_id, tourist_code: code, name: b.name, email: b.email, phone: b.phone, tourist_type: b.tourist_type, nationality: b.nationality });
   }
   await TripMember.updateOne({ trip_id: trip._id, tourist_id: tourist._id }, { $setOnInsert: { trip_id: trip._id, tourist_id: tourist._id } }, { upsert: true });
+  await syncMany([tourist._id]);
   res.status(201).json(pub(tourist));
+});
+
+// ---- Planned route (route-deviation monitoring) -------------------------------------------------
+const routePoint = z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) });
+const routeBody = z.object({
+  points: z.array(routePoint).min(2).max(1500),
+  distance_km: z.number().positive().max(20000).optional(),
+  source: z.enum(["OSRM", "STRAIGHT", "MANUAL"]).default("MANUAL"),
+  warn_m: z.number().int().min(50).max(5000).optional(),
+  alert_m: z.number().int().min(100).max(10000).optional(),
+}).refine((b) => (b.warn_m ?? ROUTE_DEFAULTS.warn_m) < (b.alert_m ?? ROUTE_DEFAULTS.alert_m), { message: "The warning distance must be smaller than the deviation distance" });
+
+router.put("/:id/route", requireRole("company"), async (req, res) => {
+  const b = routeBody.parse(req.body);
+  const trip = await Trip.findOne({ _id: oid(req.params.id, "Trip"), company_id: req.user.company_id });
+  if (!trip) throw notFound("Trip not found");
+  trip.planned_route = { points: b.points, point_count: b.points.length, distance_km: b.distance_km, source: b.source, set_at: new Date() };
+  trip.deviation = { warn_m: b.warn_m ?? ROUTE_DEFAULTS.warn_m, alert_m: b.alert_m ?? ROUTE_DEFAULTS.alert_m };
+  await trip.save();
+  // old comparisons belonged to the previous route
+  await Tourist.updateMany({ _id: { $in: await TripMember.distinct("tourist_id", { trip_id: trip._id }) } }, { $unset: { route_state: 1 } });
+  await audit(req.user, "TRIP_ROUTE_SET", "Trip", trip._id, { points: b.points.length, ...trip.deviation.toObject?.() });
+  res.json(pub(trip));
+});
+
+router.delete("/:id/route", requireRole("company"), async (req, res) => {
+  const trip = await Trip.findOne({ _id: oid(req.params.id, "Trip"), company_id: req.user.company_id });
+  if (!trip) throw notFound("Trip not found");
+  trip.planned_route = { points: [], point_count: 0 };
+  await trip.save();
+  await Tourist.updateMany({ _id: { $in: await TripMember.distinct("tourist_id", { trip_id: trip._id }) } }, { $unset: { route_state: 1 } });
+  await audit(req.user, "TRIP_ROUTE_CLEARED", "Trip", trip._id);
+  res.json(pub(trip));
 });
 
 router.delete("/:id/tourists/:touristId", requireRole("company"), async (req, res) => {
   const trip = await Trip.findOne({ _id: oid(req.params.id, "Trip"), company_id: req.user.company_id });
   if (!trip) throw notFound("Trip not found");
-  await TripMember.deleteOne({ trip_id: trip._id, tourist_id: oid(req.params.touristId, "Tourist") });
+  const touristId = oid(req.params.touristId, "Tourist");
+  await TripMember.deleteOne({ trip_id: trip._id, tourist_id: touristId });
+  await syncMany([touristId]);
   res.json({ ok: true });
 });
 

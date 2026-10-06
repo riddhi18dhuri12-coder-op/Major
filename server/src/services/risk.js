@@ -37,6 +37,8 @@ function levelFor(score) {
  * @param {boolean} i.overdueTravel       independent travel is past its return time
  * @param {boolean} i.missedCheckIn       "I'm Safe" check-in is overdue
  * @param {number}  i.nearbyIncidents     recent incidents within the area
+ * @param {string}  [i.routeLevel]        ON_ROUTE | WARNING | DEVIATION against the planned trip route
+ * @param {number}  [i.routeDistanceM]    metres from the planned route
  */
 function assessRisk(i) {
   let score = 0;
@@ -64,6 +66,8 @@ function assessRisk(i) {
   if (i.minutesSinceUpdate >= 30) add(zoneType === "DANGER" || zoneType === "RESTRICTED" ? 20 : 10, `No location update for ${Math.round(i.minutesSinceUpdate)} minutes`);
   if (i.overdueTravel) add(20, "Independent travel is overdue");
   if (i.missedCheckIn) add(10, "Missed 'I'm Safe' check-in");
+  if (i.routeLevel === "DEVIATION") add(20, `Off the planned route by ${Math.round(i.routeDistanceM || 0)} m`);
+  else if (i.routeLevel === "WARNING") add(8, `Drifting from the planned route (${Math.round(i.routeDistanceM || 0)} m)`);
   if (i.nearbyIncidents > 0) add(Math.min(10, i.nearbyIncidents * 4), `${i.nearbyIncidents} recent incident(s) in this area`);
 
   score = Math.min(100, score);

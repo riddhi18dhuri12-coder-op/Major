@@ -3,6 +3,7 @@ const { z } = require("zod");
 const { Tourist, ProofBlock, nextSeq } = require("../models");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { appendProof, verifyChain, hashDocument } = require("../services/ledger");
+const { syncIdValidity, currentValidity } = require("../services/idValidity");
 const { notify } = require("../services/notify");
 const { audit } = require("../services/audit");
 const { emitToTourist } = require("../services/realtime");
@@ -56,6 +57,7 @@ router.get("/me", requireRole("tourist"), async (req, res) => {
   res.json({
     status: v.status || "NOT_SUBMITTED",
     digital_id: t.digital_id || null,
+    id_validity: currentValidity(t),
     tourist_type: t.tourist_type,
     document_type: v.document_type || null,
     document_last4: v.document_last4 || null,
@@ -100,22 +102,26 @@ router.put("/:touristId/decision", requireRole("company", "authority"), async (r
   tourist.verification.reviewed_by = req.user.id;
   await tourist.save();
   await audit(req.user, b.decision === "APPROVE" ? "VERIFICATION_APPROVED" : "VERIFICATION_REJECTED", "Tourist", tourist._id, { digital_id: tourist.digital_id, reason: b.reason });
+  const id_validity = b.decision === "APPROVE" ? await syncIdValidity(tourist._id) : null; // starts the visit-only validity window
   emitToTourist(tourist._id, "verification:updated", { status: tourist.verification.status, digital_id: tourist.digital_id });
-  res.json({ status: tourist.verification.status, digital_id: tourist.digital_id || null });
+  res.json({ status: tourist.verification.status, digital_id: tourist.digital_id || null, id_validity });
 });
 
 // ---- Proof checks -----------------------------------------------------------------------------
 // Look up the proof for a Digital ID (e.g. police checking a tourist's ID) and confirm the chain is intact.
 router.get("/proof/:digitalId", requireRole("company", "authority"), async (req, res) => {
-  const t = await Tourist.findOne({ digital_id: req.params.digitalId }).select("company_id name tourist_code digital_id verification.status");
+  const t = await Tourist.findOne({ digital_id: req.params.digitalId }).select("company_id name tourist_code digital_id id_validity verification.status");
   if (!t || (req.user.role === "company" && String(t.company_id) !== req.user.company_id)) throw notFound("Digital ID not found");
   const block = await ProofBlock.findOne({ tourist_id: t._id }).sort({ index: -1 }).lean();
-  res.json({ digital_id: t.digital_id, name: t.name, status: t.verification?.status, chain: await verifyChain(), proof: block && { block_index: block.index, record_hash: block.record_hash, block_hash: block.block_hash, recorded_at: block.created_at } });
+  const id_validity = currentValidity(t);
+  const chain = await verifyChain();
+  // "valid" is what a checkpoint officer needs: verified identity, intact ledger AND the visit is in progress
+  res.json({ digital_id: t.digital_id, name: t.name, status: t.verification?.status, id_validity, valid: t.verification?.status === "VERIFIED" && chain.valid && id_validity?.status === "ACTIVE", chain, proof: block && { block_index: block.index, event: block.event || "ISSUED", record_hash: block.record_hash, block_hash: block.block_hash, recorded_at: block.created_at } });
 });
 
 router.get("/ledger", requireRole("authority"), async (req, res) => {
   const [chain, latest] = await Promise.all([verifyChain(), ProofBlock.find().sort({ index: -1 }).limit(20).lean()]);
-  res.json({ ...chain, latest: latest.map((b) => ({ index: b.index, digital_id: b.digital_id, record_hash: b.record_hash, block_hash: b.block_hash, created_at: b.created_at })) });
+  res.json({ ...chain, latest: latest.map((b) => ({ index: b.index, digital_id: b.digital_id, event: b.event || "ISSUED", record_hash: b.record_hash, block_hash: b.block_hash, created_at: b.created_at })) });
 });
 
 module.exports = router;

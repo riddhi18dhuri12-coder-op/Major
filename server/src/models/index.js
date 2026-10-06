@@ -36,6 +36,13 @@ const Tourist = mongoose.model(
       tourist_type: { type: String, enum: ["DOMESTIC", "FOREIGN"], default: "DOMESTIC" },
       nationality: String,
       digital_id: { type: String, unique: true, sparse: true }, // STID-2026-0001, issued once verified
+      // The ID is only valid for the visit: window comes from the tourist's trip dates (capped by visa expiry for foreign tourists)
+      id_validity: {
+        valid_from: Date,
+        valid_until: Date, // null = open-ended (a trip has no end date)
+        status: { type: String, enum: ["PENDING", "ACTIVE", "EXPIRED"] },
+        synced_at: Date,
+      },
       verification: {
         status: { type: String, enum: ["NOT_SUBMITTED", "PENDING", "VERIFIED", "REJECTED"], default: "NOT_SUBMITTED" },
         document_type: String, // AADHAAR | PASSPORT | DRIVING_LICENSE | VOTER_ID
@@ -55,6 +62,8 @@ const Tourist = mongoose.model(
         updated_at: Date,
       },
       current_zone: { id: String, name: String, type: { type: String } }, // "type" must be declared this way or Mongoose reads the whole object as a String
+      // latest comparison against the planned route (see services/routeDeviation.js)
+      route_state: { trip_id: ObjectId, level: { type: String, enum: ["ON_ROUTE", "WARNING", "DEVIATION"] }, distance_m: Number, streak: Number, updated_at: Date },
       last_check_in_at: Date, // last "I'm Safe" (or last missed-check reminder); starts when the trip goes ACTIVE
       // denormalised latest position so the live map is one query, not N+1
       last_location: { latitude: Number, longitude: Number, accuracy: Number, recorded_at: Date },
@@ -77,6 +86,15 @@ const Trip = mongoose.model(
       end_location: String,
       guide_id: { type: ObjectId, ref: "Guide", default: null, index: true },
       status: { type: String, enum: ["UPCOMING", "ACTIVE", "COMPLETED"], default: "UPCOMING", index: true },
+      // Planned GPS route (polyline). While the trip is ACTIVE every location update is compared against it.
+      planned_route: {
+        points: [{ latitude: Number, longitude: Number, _id: false }],
+        point_count: { type: Number, default: 0 }, // kept so trip lists can skip the heavy points array
+        distance_km: Number,
+        source: { type: String, enum: ["OSRM", "STRAIGHT", "MANUAL"] },
+        set_at: Date,
+      },
+      deviation: { warn_m: Number, alert_m: Number }, // per-trip thresholds; defaults 200 m / 500 m
     },
     opts
   )
@@ -164,7 +182,7 @@ const notificationSchema = new Schema(
     company_id: { type: ObjectId, ref: "Company", default: null },
     tourist_id: { type: ObjectId, ref: "Tourist", default: null },
     message: { type: String, required: true },
-    type: { type: String, enum: ["SOS", "OVERDUE_TRAVEL", "STALE_LOCATION", "MISSED_CHECKIN", "ZONE_ALERT", "HIGH_RISK", "VERIFICATION"], required: true },
+    type: { type: String, enum: ["SOS", "OVERDUE_TRAVEL", "STALE_LOCATION", "MISSED_CHECKIN", "ZONE_ALERT", "HIGH_RISK", "VERIFICATION", "ID_EXPIRED", "ID_RENEWED", "ROUTE_DEVIATION"], required: true },
     read: { type: Boolean, default: false },
   },
   opts
@@ -223,6 +241,7 @@ const proofSchema = new Schema({
   index: { type: Number, required: true, unique: true },
   tourist_id: { type: ObjectId, ref: "Tourist", required: true, index: true },
   digital_id: String,
+  event: { type: String, default: "ISSUED" }, // ISSUED | ID_EXPIRED | ID_RENEWED
   record_hash: { type: String, required: true },
   prev_hash: { type: String, required: true },
   block_hash: { type: String, required: true },

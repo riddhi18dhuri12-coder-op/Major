@@ -7,7 +7,7 @@ import { useSocket } from '../hooks/useSocket'
 import ErrorBoundary from './ErrorBoundary'
 import { api } from '../lib/api'
 
-const ICON = { SOS: '🆘', OVERDUE_TRAVEL: '⏰', STALE_LOCATION: '📡', MISSED_CHECKIN: '🕒', ZONE_ALERT: '🚧', HIGH_RISK: '⚠️', VERIFICATION: '🪪' }
+const ICON = { SOS: '🆘', OVERDUE_TRAVEL: '⏰', STALE_LOCATION: '📡', MISSED_CHECKIN: '🕒', ZONE_ALERT: '🚧', HIGH_RISK: '⚠️', VERIFICATION: '🪪', ID_EXPIRED: '🪪', ID_RENEWED: '🪪', ROUTE_DEVIATION: '🧭' }
 
 function NotificationBell() {
     const toast = useToast()

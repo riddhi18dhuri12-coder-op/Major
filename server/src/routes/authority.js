@@ -9,6 +9,7 @@ const { audit } = require("../services/audit");
 const { emitToUnit, emitToAuthority } = require("../services/realtime");
 const { revokeAllFor } = require("../services/tokens");
 const { pub, pubList } = require("../utils/serialize");
+const { currentValidity } = require("../services/idValidity");
 const { oid } = require("../utils/ids");
 const { bad, conflict, notFound } = require("../utils/errors");
 
@@ -47,7 +48,7 @@ router.get("/tourists", requireRole("authority"), async (req, res) => {
   const rows = await Tourist.find(filter).sort({ "risk.score": -1 }).limit(500).lean();
   const companies = await Company.find({ _id: { $in: [...new Set(rows.map((t) => String(t.company_id)))] } }).select("name").lean();
   const names = new Map(companies.map((c) => [String(c._id), c.name]));
-  res.json(rows.map(({ _id, password_hash, __v, verification, ...t }) => ({ id: String(_id), ...t, verification_status: verification?.status, agency: names.get(String(t.company_id)) })));
+  res.json(rows.map(({ _id, password_hash, __v, verification, ...t }) => ({ id: String(_id), ...t, verification_status: verification?.status, id_validity: currentValidity(t), agency: names.get(String(t.company_id)) })));
 });
 
 // ---- Response units ------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Circle, Polygon, CircleMarker, Marker, Popup, useMapEvents, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Circle, Polygon, Polyline, CircleMarker, Marker, Popup, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useEffect } from 'react'
 
@@ -28,12 +28,13 @@ function Fit({ points, focus }) {
  * One map used by every portal.
  * zones: authority-defined areas | tourists: { id,name,tourist_code,last_location,risk } | incidents | units | me: this user's position
  * onMapClick: pick a point (zone creation). draft: zone being drawn.
+ * lines: planned routes to draw, [{ id, points: [{latitude, longitude}], color?, dashed?, name? }]. markers: extra labelled points [{ id, latitude, longitude, label, emoji? }].
  */
-export default function MapView({ zones = [], tourists = [], incidents = [], units = [], me = null, draft = null, onMapClick, onSelectIncident, height = 'h-80', focus = null, fit = true }) {
+export default function MapView({ zones = [], tourists = [], incidents = [], units = [], me = null, draft = null, lines = [], markers = [], onMapClick, onSelectIncident, height = 'h-80', focus = null, fit = true }) {
   const located = tourists.filter((t) => t.last_location?.latitude != null)
   const incLoc = incidents.filter((i) => i.latitude != null)
   const unitLoc = units.filter((u) => u.location?.latitude != null)
-  const pts = [...located.map((t) => t.last_location), ...incLoc, ...unitLoc.map((u) => u.location), ...(me ? [me] : [])]
+  const pts = [...located.map((t) => t.last_location), ...incLoc, ...unitLoc.map((u) => u.location), ...(me ? [me] : []), ...lines.flatMap((l) => l.points), ...markers]
   const center = pts[0] ? [pts[0].latitude, pts[0].longitude] : [18.9, 73.2] // Maharashtra by default
 
   return (
@@ -51,6 +52,13 @@ export default function MapView({ zones = [], tourists = [], incidents = [], uni
             ? <Circle key={z.id} center={[z.shape.center.latitude, z.shape.center.longitude]} radius={z.shape.radius_m} pathOptions={style}>{popup}</Circle>
             : <Polygon key={z.id} positions={z.shape.polygon.map((p) => [p.latitude, p.longitude])} pathOptions={style}>{popup}</Polygon>
         })}
+
+        {lines.map((l) => l.points?.length > 1 && (
+          <Polyline key={l.id} positions={l.points.map((p) => [p.latitude, p.longitude])} pathOptions={{ color: l.color || '#22d3ee', weight: 5, opacity: 0.85, dashArray: l.dashed ? '8 8' : undefined }}>
+            {l.name && <Popup>{l.name}</Popup>}
+          </Polyline>
+        ))}
+        {markers.map((m) => <Marker key={m.id} position={[m.latitude, m.longitude]} icon={icon(m.emoji || '📍', '#0891b2')}><Popup>{m.label}</Popup></Marker>)}
 
         {draft?.center && <Circle center={[draft.center.latitude, draft.center.longitude]} radius={draft.radius_m || 100} pathOptions={{ color: '#22d3ee', dashArray: '4 6', fillOpacity: 0.12 }} />}
         {draft?.polygon?.length > 0 && <Polygon positions={draft.polygon.map((p) => [p.latitude, p.longitude])} pathOptions={{ color: '#22d3ee', dashArray: '4 6', fillOpacity: 0.12 }} />}

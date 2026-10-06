@@ -17,11 +17,13 @@ const hashDocument = (type, number) =>
 
 const blockHash = (b) => sha(`${b.index}|${b.tourist_id}|${b.record_hash}|${b.prev_hash}|${new Date(b.created_at).toISOString()}`);
 
-async function appendProof({ tourist_id, digital_id, document_hash, verified_at }) {
-  const record_hash = sha(JSON.stringify({ digital_id, document_hash, verified_at: new Date(verified_at).toISOString() }));
+async function appendProof({ tourist_id, digital_id, document_hash, verified_at, event = "ISSUED", valid_until = null }) {
+  const base = { digital_id, document_hash, verified_at: new Date(verified_at).toISOString() };
+  // ISSUED keeps the original hash layout so existing blocks stay valid; later lifecycle events also commit to the event and window
+  const record_hash = sha(JSON.stringify(event === "ISSUED" ? base : { ...base, event, valid_until: valid_until ? new Date(valid_until).toISOString() : null }));
   for (let attempt = 0; attempt < 5; attempt++) {
     const last = await ProofBlock.findOne().sort({ index: -1 });
-    const block = { index: (last?.index ?? -1) + 1, tourist_id, digital_id, record_hash, prev_hash: last?.block_hash || GENESIS, created_at: new Date() };
+    const block = { index: (last?.index ?? -1) + 1, tourist_id, digital_id, event, record_hash, prev_hash: last?.block_hash || GENESIS, created_at: new Date() };
     block.block_hash = blockHash(block);
     try {
       return await ProofBlock.create(block);

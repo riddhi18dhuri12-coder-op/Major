@@ -4,14 +4,29 @@ import { Panel, Button, Field, Input, Select, StatusBadge, Loading, label, useTo
 import { api } from '../../lib/api'
 import { useTourist } from './TouristContext'
 
+const fmtDay = (d) => (d ? new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : null)
+
 function DigitalId({ v, p }) {
     const verified = v.status === 'VERIFIED'
+    const validity = verified ? v.id_validity : null
+    const expired = validity?.status === 'EXPIRED'
     return (
-        <div className={`rounded-2xl border p-6 ${verified ? 'border-cyan-500/40 bg-gradient-to-br from-slate-900 to-cyan-950/40' : 'border-slate-800 bg-slate-900'}`}>
+        <div className={`rounded-2xl border p-6 ${expired ? 'border-red-500/40 bg-slate-900 opacity-80' : verified ? 'border-cyan-500/40 bg-gradient-to-br from-slate-900 to-cyan-950/40' : 'border-slate-800 bg-slate-900'}`}>
             <div className="flex items-start justify-between">
                 <div><p className="text-xs uppercase tracking-wider text-cyan-400">Digital Tourist ID</p><p className="mt-2 text-2xl font-bold tracking-wide">{v.digital_id || 'Not issued yet'}</p></div>
-                <StatusBadge value={v.status} />
+                <StatusBadge value={validity ? validity.status : v.status} />
             </div>
+            {validity && (
+                <p className={`mt-4 rounded-lg px-3 py-2 text-xs ${expired ? 'bg-red-500/10 text-red-300' : validity.status === 'PENDING' ? 'bg-amber-500/10 text-amber-300' : 'bg-cyan-500/10 text-cyan-200'}`}>
+                    {expired
+                        ? `This ID expired on ${fmtDay(validity.valid_until)} because your visit has ended. Ask your agency if your trip dates have changed.`
+                        : validity.status === 'PENDING'
+                            ? `Not active yet. Valid from ${fmtDay(validity.valid_from)}.`
+                            : validity.valid_until
+                                ? `Valid for your visit: ${validity.valid_from ? `${fmtDay(validity.valid_from)} – ` : 'until '}${fmtDay(validity.valid_until)}`
+                                : 'Valid while your trip is in progress.'}
+                </p>
+            )}
             <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
                 <div><dt className="text-slate-500">Name</dt><dd className="text-slate-200">{p.name}</dd></div>
                 <div><dt className="text-slate-500">Tourist type</dt><dd className="text-slate-200">{label(v.tourist_type)}</dd></div>

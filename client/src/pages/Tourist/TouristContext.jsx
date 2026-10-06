@@ -19,7 +19,7 @@ export function TouristProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [verification, setVerification] = useState(null)
   const [position, setPosition] = useState(null)
-  const [live, setLive] = useState({ zone: null, risk: null, warnings: [] })
+  const [live, setLive] = useState({ zone: null, risk: null, warnings: [], route: null })
   const [gpsError, setGpsError] = useState(null)
   const [pending, setPending] = useState(outbox.count())
   const lastPost = useRef(0)
@@ -53,7 +53,7 @@ export function TouristProvider({ children }) {
     lastPost.current = Date.now()
     try {
       const r = await api.post('/location', { latitude: pos.latitude, longitude: pos.longitude, accuracy: pos.accuracy })
-      setLive({ zone: r.zone, risk: r.risk, warnings: r.warnings || [] })
+      setLive({ zone: r.zone, risk: r.risk, warnings: r.warnings || [], route: r.route || null })
     } catch { /* offline: the next fix will try again */ }
   }, [])
 
@@ -113,10 +113,14 @@ export function TouristProvider({ children }) {
   // ---- live alerts from the server ---------------------------------------------------
   useSocket({
     'zone:warning': (d) => { toast(`🚧 ${d.message}`, 'amber'); setLive((l) => ({ ...l, zone: d.zone, warnings: [d.message] })) },
+    'route:warning': (d) => { toast(`🧭 ${d.message}`, 'amber') },
+    'route:deviation': (d) => { toast(`🧭 ${d.message}`, 'red'); reload().catch(() => {}) },
+    'route:back': (d) => { toast(`✅ ${d.message}`, 'green') },
     'risk:warning': (d) => { toast(`⚠️ Your risk level is now ${d.level}: ${d.factors[0]}`, 'amber'); reload().catch(() => {}) },
     'checkin:reminder': (d) => { toast(`🕒 Please tap "I'm Safe" — it has been over ${d.interval_hours} hours.`, 'amber'); reload().catch(() => {}) },
     'travel:overdue': () => { toast('⏰ You are past your expected return time. Open My Journey to check in.', 'red'); reload().catch(() => {}) },
     'verification:updated': (d) => { toast(`🪪 Verification ${d.status.toLowerCase()}${d.digital_id ? ` — your Digital ID is ${d.digital_id}` : ''}`, d.status === 'VERIFIED' ? 'green' : 'amber'); reload().catch(() => {}) },
+    'id:validity': (d) => { toast(d.status === 'EXPIRED' ? `🪪 Your Digital ID ${d.digital_id} has expired — your visit has ended.` : `🪪 Your Digital ID ${d.digital_id} is valid again.`, d.status === 'EXPIRED' ? 'amber' : 'green'); reload().catch(() => {}) },
     'incident:updated': () => { toast('Your emergency report was updated.', 'cyan') },
   })
 

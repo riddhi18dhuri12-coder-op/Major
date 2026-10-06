@@ -49,7 +49,7 @@ const toneFor = {
   NEW: 'red', ACKNOWLEDGED: 'amber', RESPONDING: 'cyan', ON_SITE: 'purple', RESOLVED: 'green', FALSE_ALARM: 'slate',
   AVAILABLE: 'green', DISPATCHED: 'amber', EN_ROUTE: 'cyan', ON_SCENE: 'purple', OFFLINE: 'slate',
   SAFE: 'green', CAUTION: 'amber', DANGER: 'red', RESTRICTED: 'purple', REST_POINT: 'cyan',
-  UPCOMING: 'slate', ACTIVE: 'cyan', COMPLETED: 'green', OVERDUE: 'red', RETURNED: 'green',
+  EXPIRED: 'red', UPCOMING: 'slate', ACTIVE: 'cyan', COMPLETED: 'green', OVERDUE: 'red', RETURNED: 'green',
 }
 export const label = (v) => (v ? String(v).replace(/_/g, ' ').toLowerCase().replace(/^\w|\s\w/g, (c) => c.toUpperCase()) : '-')
 export function StatusBadge({ value }) {

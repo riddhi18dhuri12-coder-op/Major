@@ -98,6 +98,34 @@ function SaferRoute({ zones }) {
     )
 }
 
+const ROUTE_BADGE = {
+    ON_ROUTE: ['border-emerald-500/30 bg-emerald-500/10 text-emerald-300', 'You are on your planned route'],
+    WARNING: ['border-amber-500/30 bg-amber-500/10 text-amber-300', 'You are drifting from your planned route'],
+    DEVIATION: ['border-red-500/30 bg-red-500/10 text-red-300', 'You are off your planned route. Your agency has been alerted'],
+}
+
+// The agency's planned route for my active trip, with my position and how far off it I am.
+function PlannedRoute({ trips, zones }) {
+    const t = useTourist()
+    const active = (trips || []).find((x) => x.status === 'ACTIVE' && x.planned_route?.point_count >= 2)
+    const detail = useLoad(() => (active ? api.get(`/trips/${active.id}`) : Promise.resolve(null)), [active?.id])
+    if (!active) return null
+    const route = detail.data?.planned_route
+    const state = t.live?.route
+    const badge = state && ROUTE_BADGE[state.level]
+    return (
+        <Panel title="Planned route" subtitle={`${active.name}: stay on the highlighted route. Your agency is alerted if you stray far from it.`}>
+            {detail.loading ? <Loading /> : (
+                <>
+                    {badge && <p className={`mb-3 rounded-lg border p-3 text-sm ${badge[0]}`}>{badge[1]}{state.level !== 'ON_ROUTE' ? ` (${state.distance_m} m away)` : ''}.</p>}
+                    <MapView zones={zones} height="h-72" me={t.position} lines={route?.points?.length ? [{ id: 'route', points: route.points, name: 'Planned route' }] : []} />
+                    {!t.position && <p className="mt-3 text-xs text-slate-500">Turn on location sharing to see how you are doing against the route.</p>}
+                </>
+            )}
+        </Panel>
+    )
+}
+
 export default function Journey() {
     const trips = useLoad(() => api.get('/trips'))
     const zones = useLoad(() => api.get('/zones'))
@@ -116,6 +144,7 @@ export default function Journey() {
                         ]} />
                     )}
                 </Panel>
+                <PlannedRoute trips={trips.data} zones={zones.data || []} />
                 <IndependentTravel />
                 <SaferRoute zones={zones.data || []} />
             </div>

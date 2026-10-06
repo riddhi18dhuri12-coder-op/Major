@@ -4,6 +4,7 @@ const logger = require("../utils/logger");
 const { Tourist, TripMember, Trip, TravelSession, SafetyCheck, Notification, SchedulerLock } = require("../models");
 const { notify } = require("./notify");
 const { emitToCompany, emitToTourist } = require("./realtime");
+const { checkIdValidity } = require("./idValidity");
 
 const OWNER = crypto.randomUUID(); // identifies this server instance
 
@@ -104,8 +105,8 @@ async function checkMissedCheckIns() {
 async function runChecks() {
   const ttl = env.SCHEDULER_INTERVAL_SECONDS * 1000 * 0.9;
   if (!(await acquireLock(ttl))) return null;
-  const result = { overdue: 0, stale: 0, missed: 0 };
-  for (const [key, fn] of [["overdue", checkOverdueTravel], ["stale", checkStaleLocations], ["missed", checkMissedCheckIns]]) {
+  const result = { overdue: 0, stale: 0, missed: 0, id_expiry: 0 };
+  for (const [key, fn] of [["overdue", checkOverdueTravel], ["stale", checkStaleLocations], ["missed", checkMissedCheckIns], ["id_expiry", checkIdValidity]]) {
     try {
       result[key] = await fn(); // one failing check must not stop the others
     } catch (err) {
@@ -122,4 +123,4 @@ function startScheduler() {
   return setInterval(tick, env.SCHEDULER_INTERVAL_SECONDS * 1000);
 }
 
-module.exports = { startScheduler, runChecks, checkOverdueTravel, checkStaleLocations, checkMissedCheckIns };
+module.exports = { startScheduler, runChecks, checkOverdueTravel, checkStaleLocations, checkMissedCheckIns, checkIdValidity };
