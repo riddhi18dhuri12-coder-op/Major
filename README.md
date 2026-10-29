@@ -161,6 +161,7 @@ changed, or if the code uses a key that does not exist; the test-suite runs the 
 - **GPS tracking switch:** in the tourist top bar. It is the tourist's consent for the guide and agency to see their position; off = the phone stops reading GPS and the server rejects position updates.
 - **Close my own emergency:** while a tourist has an open SOS/report, the dashboard and Emergency page show *Issue solved — stop alert* and *Pressed by mistake* (`PUT /api/incidents/:id/self-resolve`). The case closes as RESOLVED or FALSE_ALARM, any assigned unit is freed, the tourist returns to Safe, and the agency and authority get a notification.
 - **Nearby hospitals and police stations:** red-cross markers for hospitals, blue-shield markers for police stations; the nearest of each pulses. Shown on the dashboard, Safety Zones and Emergency pages with distance and a directions link. Data comes live from OpenStreetMap (Overpass API) and is cached on the device for a day per ~2 km area, so it still works after signal is lost. OSM coverage varies by area.
+
 ## Roadmap (not built yet)
 SMS/push alerts · ML risk model service · real identity verification provider · multilingual UI · heat-maps & exportable reports ·
 refresh token in `httpOnly` cookie · per-guide tourist scoping.

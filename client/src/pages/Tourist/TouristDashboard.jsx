@@ -1,17 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardHeader from '../../components/DashboardHeader'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import DashboardHeader from '../../components/DashboardHeader'
 import MapView, { ZoneLegend, ServiceLegend } from '../../components/MapView'
 import SelfResolve from '../../components/SelfResolve'
 import { markNearest } from '../../components/NearbyHelp'
 import { useNearbyServices } from '../../lib/nearby'
-
-import { StatCard, Panel, Button, Modal, StatusBadge, useToast } from '../../components/ui'
-import { api } from '../../lib/api'
-import { useLoad } from '../../hooks/useLoad'
 import { StatCard, Panel, Button, Modal, StatusBadge, useToast } from '../../components/ui'
 import { api } from '../../lib/api'
 import { useLoad } from '../../hooks/useLoad'
@@ -85,6 +78,7 @@ function TouristDashboard() {
     return (
         <>
             <DashboardHeader portal={tr('portal.tourist')} title={tr('dash.welcome', { name: p.name.split(' ')[0] })} description={tr('dash.desc')} status={statusText} statusColor={statusColor} />
+
             {p.status === 'EMERGENCY' && <SelfResolve />}
 
             {t.pending > 0 && (
