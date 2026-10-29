@@ -7,9 +7,14 @@ import { useSocket } from '../../hooks/useSocket'
 import { useTourist } from './TouristContext'
 import { SosButton } from './TouristDashboard'
 import { useI18n } from '../../lib/i18n'
+import { useTourist } from './TouristContext'
+import { SosButton } from './TouristDashboard'
+import { useI18n } from '../../lib/i18n'
 import SelfResolve from '../../components/SelfResolve'
 import NearbyHelp from '../../components/NearbyHelp'
 import { useNearbyServices } from '../../lib/nearby'
+
+const TYPES = ['MEDICAL', 'ACCIDENT', 'LOST', 'THEFT', 'HARASSMENT', 'UNSAFE', 'TRANSPORT', 'OTHER']
 
 const TYPES = ['MEDICAL', 'ACCIDENT', 'LOST', 'THEFT', 'HARASSMENT', 'UNSAFE', 'TRANSPORT', 'OTHER']
 
@@ -101,6 +106,9 @@ export default function Emergency() {
 
             <div className="mt-6"><NearbyHelp position={t.position} nearby={nearby} /></div>
 
+            <Panel className="mt-6" title={tr('em.myReports')}>
+                {list.loading ? <Loading /> : list.error ? <ErrorNote message={list.error} onRetry={list.reload} /> : (
+                    <Table rows={list.data} empty={tr('em.noReports')} onRowClick={(r) => setOpen(r.id)} columns={[
             <Panel className="mt-6" title={tr('em.myReports')}>
                 {list.loading ? <Loading /> : list.error ? <ErrorNote message={list.error} onRetry={list.reload} /> : (
                     <Table rows={list.data} empty={tr('em.noReports')} onRowClick={(r) => setOpen(r.id)} columns={[
