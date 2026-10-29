@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import Sidebar, { NavItems, roleTitles } from './Sidebar'
+import Sidebar, { NavItems, usePortalTitle } from './Sidebar'
+import PreferencesBar from './PreferencesBar'
+import GpsToggle from './GpsToggle'
+import { useI18n } from '../lib/i18n'
 import { Modal, useToast, timeAgo } from './ui'
-import { useAuth, ROLE_LABEL } from '../lib/auth'
+import { useAuth } from '../lib/auth'
 import { useSocket } from '../hooks/useSocket'
 import ErrorBoundary from './ErrorBoundary'
 import { api } from '../lib/api'
@@ -31,7 +34,7 @@ function NotificationBell() {
         <>
             <button onClick={() => setOpen(true)} aria-label={`Notifications, ${unread} unread`} className="relative rounded-lg border border-slate-800 px-3 py-2 text-lg hover:border-cyan-500">
                 🔔
-                {unread > 0 && <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{unread}</span>}
+                {unread > 0 && <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-[#fff]">{unread}</span>}
             </button>
             {open && (
                 <Modal title="Notifications" onClose={() => setOpen(false)}>
@@ -57,6 +60,8 @@ export default function PortalLayout({ role, children }) {
     const navigate = useNavigate()
     const location = useLocation()
     const [menu, setMenu] = useState(false)
+    const { t } = useI18n()
+    const title = usePortalTitle()
     const hasBell = user.role !== 'tourist' && user.role !== 'responder'
 
     return (
@@ -65,16 +70,18 @@ export default function PortalLayout({ role, children }) {
                 <Sidebar role={role} userRole={user.role} />
 
                 <main className="min-w-0 flex-1">
-                    <div className="sticky top-0 z-[1000] flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/95 px-6 py-3 backdrop-blur">
-                        <button onClick={() => setMenu(true)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 lg:hidden" aria-label="Open menu">☰ Menu</button>
-                        <span className="hidden text-sm text-slate-500 lg:block">{roleTitles[role]}</span>
-                        <div className="flex items-center gap-3">
+                    <div className="sticky top-0 z-[1000] flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/95 px-6 py-3 backdrop-blur">
+                        <button onClick={() => setMenu(true)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 lg:hidden" aria-label={t('common.openMenu')}>{t('common.menu')}</button>
+                        <span className="hidden text-sm text-slate-500 lg:block">{title(role)}</span>
+                        <div className="flex flex-wrap items-center gap-3">
+                            {user.role === 'tourist' && <GpsToggle compact />}
+                            <PreferencesBar />
                             {hasBell && <NotificationBell />}
                             <div className="hidden text-right text-xs sm:block">
                                 <p className="font-medium text-slate-200">{user.name}</p>
-                                <p className="text-slate-500">{ROLE_LABEL[user.role]}</p>
+                                <p className="text-slate-500">{t(`role.${user.role}`)}</p>
                             </div>
-                            <button onClick={async () => { await logout(); navigate('/login') }} className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:border-red-500 hover:text-red-400">Sign out</button>
+                            <button onClick={async () => { await logout(); navigate('/login') }} className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:border-red-500 hover:text-red-400">{t('common.signOut')}</button>
                         </div>
                     </div>
 
@@ -83,7 +90,7 @@ export default function PortalLayout({ role, children }) {
             </div>
 
             {menu && (
-                <Modal title={roleTitles[role]} onClose={() => setMenu(false)}>
+                <Modal title={title(role)} onClose={() => setMenu(false)}>
                     <NavItems role={role} userRole={user.role} onNavigate={() => setMenu(false)} />
                 </Modal>
             )}

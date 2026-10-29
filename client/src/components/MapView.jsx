@@ -1,6 +1,7 @@
 import { MapContainer, TileLayer, Circle, Polygon, Polyline, CircleMarker, Marker, Popup, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useEffect } from 'react'
+import { useI18n } from '../lib/i18n'
 
 export const ZONE_COLORS = { SAFE: '#10b981', CAUTION: '#f59e0b', DANGER: '#ef4444', RESTRICTED: '#a855f7', REST_POINT: '#06b6d4' }
 const RISK_COLORS = { LOW: '#10b981', MEDIUM: '#f59e0b', HIGH: '#ef4444', CRITICAL: '#dc2626' }
@@ -89,10 +90,11 @@ export default function MapView({ zones = [], tourists = [], incidents = [], uni
 }
 
 export function ZoneLegend() {
+  const { te } = useI18n()
   return (
     <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-400">
       {Object.entries(ZONE_COLORS).map(([k, c]) => (
-        <span key={k} className="flex items-center gap-2"><i className="inline-block h-3 w-3 rounded-full" style={{ background: c }} />{k.replace('_', ' ').toLowerCase()}</span>
+        <span key={k} className="flex items-center gap-2"><i className="inline-block h-3 w-3 rounded-full" style={{ background: c }} />{te(k)}</span>
       ))}
     </div>
   )

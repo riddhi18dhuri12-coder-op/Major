@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom'
+import { useI18n } from '../lib/i18n'
 
 export const menuItems = {
     tourist: [
-        { label: 'Dashboard', path: '/tourist' },
-        { label: 'My Journey', path: '/tourist/journey' },
-        { label: 'Safety Zones', path: '/tourist/safety' },
-        { label: 'Emergency / SOS', path: '/tourist/emergency' },
-        { label: 'Profile', path: '/tourist/profile' },
+        { key: 'nav.dashboard', label: 'Dashboard', path: '/tourist' },
+        { key: 'nav.journey', label: 'My Journey', path: '/tourist/journey' },
+        { key: 'nav.zones', label: 'Safety Zones', path: '/tourist/safety' },
+        { key: 'nav.sos', label: 'Emergency / SOS', path: '/tourist/emergency' },
+        { key: 'nav.profile', label: 'Profile', path: '/tourist/profile' },
     ],
 
     agency: [
@@ -36,13 +37,17 @@ export const menuItems = {
 }
 
 const roleTitles = {
-    tourist: 'Tourist Portal',
+    tourist: 'Tourist Portal', // translated at display time with portalTitle()
     agency: 'Agency Portal',
     authority: 'Authority Portal',
     emergency: 'Emergency Response',
 }
 
+/** Portal title in the current language (only the tourist portal is translated so far). */
+export const usePortalTitle = () => { const { t } = useI18n(); return (role) => (role === 'tourist' ? t('portal.tourist') : roleTitles[role]) }
+
 export function NavItems({ role, userRole, onNavigate }) {
+    const { t } = useI18n()
     const items = (menuItems[role] || []).filter((i) => !i.roles || i.roles.includes(userRole))
     return (
         <nav className="mt-6 space-y-2">
@@ -59,7 +64,7 @@ export function NavItems({ role, userRole, onNavigate }) {
                         }`
                     }
                 >
-                    {item.label}
+                    {item.key ? t(item.key) : item.label}
                 </NavLink>
             ))}
         </nav>
@@ -67,17 +72,19 @@ export function NavItems({ role, userRole, onNavigate }) {
 }
 
 function Sidebar({ role, userRole }) {
+    const { t } = useI18n()
+    const title = usePortalTitle()
     return (
         <aside className="hidden min-h-screen w-64 shrink-0 border-r border-slate-800 bg-slate-950 lg:block">
             <div className="sticky top-0 p-5">
                 {/* Sidebar Header */}
                 <div className="border-b border-slate-800 pb-5">
                     <p className="text-xs font-medium uppercase tracking-wider text-cyan-400">
-                        Smart Tourist Safety
+                        {t('app.name')}
                     </p>
 
                     <h2 className="mt-2 text-lg font-semibold text-white">
-                        {roleTitles[role]}
+                        {title(role)}
                     </h2>
                 </div>
 

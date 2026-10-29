@@ -1,14 +1,44 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
-html, body, #root { min-height: 100%; background: #020617; }
+html, body, #root { min-height: 100%; background: var(--color-slate-950); }
+html { color-scheme: dark; }
 body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 
 /* Leaflet: keep the map under modals and match the dark theme */
-.leaflet-container { background: #0f172a; font-family: inherit; border-radius: 0.5rem; }
+.leaflet-container { background: var(--color-slate-900); font-family: inherit; border-radius: 0.5rem; }
 .leaflet-control-attribution { font-size: 10px; }
-.leaflet-popup-content-wrapper { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; }
-.leaflet-popup-tip { background: #0f172a; }
+.leaflet-popup-content-wrapper { background: var(--color-slate-900); color: var(--color-slate-200); border: 1px solid var(--color-slate-700); }
+.leaflet-popup-tip { background: var(--color-slate-900); }
 
 @keyframes sos-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,.6); } 50% { box-shadow: 0 0 0 14px rgba(239,68,68,0); } }
 .sos-pulse { animation: sos-pulse 1.6s infinite; }
+
+/* ---- Light theme ------------------------------------------------------------------------
+   The UI is written with Tailwind's slate scale (dark: 950 = page, 900 = cards, 200 = text).
+   Light mode simply re-maps that scale, so every page follows without per-component changes. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-white: #0f172a;           /* "text-white" headings become near-black */
+  --color-slate-50: #020617;
+  --color-slate-100: #0f172a;
+  --color-slate-200: #1e293b;
+  --color-slate-300: #334155;
+  --color-slate-400: #475569;
+  --color-slate-500: #64748b;
+  --color-slate-600: #94a3b8;
+  --color-slate-700: #cbd5e1;
+  --color-slate-800: #e2e8f0;
+  --color-slate-900: #ffffff;
+  --color-slate-950: #f1f5f9;
+  /* accent text needs a darker shade to stay readable on light backgrounds */
+  --color-cyan-200: #155e75;
+  --color-cyan-300: #0e7490;
+  --color-cyan-400: #0e7490;
+  --color-amber-300: #92400e;
+  --color-amber-400: #b45309;
+  --color-emerald-300: #047857;
+  --color-emerald-400: #047857;
+  --color-red-300: #b91c1c;
+  --color-red-400: #b91c1c;
+}

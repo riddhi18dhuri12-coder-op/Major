@@ -131,6 +131,31 @@ missed "I'm Safe" check-ins (12 h by default; configurable in `.env`), and Digit
   at build time, and add a rewrite of all paths to `/index.html` (single-page app).
 - Several API instances → add the Socket.IO Redis adapter so live events reach every instance (the scheduler is already lock-protected).
 
+## Languages and text size
+The language picker and the **A− / 100% / A+** text-size buttons are on the home page, the login page and the top bar of every portal.
+Both choices are remembered on the device. With no saved choice, the app uses the browser's language if it is supported.
+
+**Languages (11 Indian languages + English):** हिन्दी, বাংলা, मराठी, தமிழ், తెలుగు, ગુજરાતી, ಕನ್ನಡ, മലയാളം, ਪੰਜਾਬੀ, ଓଡ଼ିଆ, অসমীয়া.
+Each language is a separate file in `client/src/locales/` that is downloaded only when chosen. A missing string falls back to English, never to a blank.
+
+**What is translated:** the home page, login, all five tourist screens (dashboard, SOS and the confirmation, emergency reports and contacts,
+safety zones, journey and route checks, profile and Digital ID), navigation, status labels everywhere, and the live alerts.
+The server sends warnings and risk reasons in English; the app recognises each known message and translates it on the device
+(`client/src/lib/serverMessages.js`). Anything it does not recognise, such as a description an officer typed for a zone, is shown unchanged.
+
+**Not translated yet:** the agency, authority and responder portal pages (their menus, titles and status labels follow the chosen language,
+but the page text is English), the PDF E-FIR (the built-in PDF fonts are Latin-only), and push/SMS text (not built yet).
+
+**Text size** is applied to the whole interface (everything is sized in `rem`), in six steps from 85% to 175%.
+
+**Translation quality:** these translations were prepared with AI assistance and have **not been reviewed by native speakers**.
+Please have a fluent speaker review them before real use, especially the SOS, emergency and safety-zone wording (`sos.*`, `em.*`, `srv.*`, `dash.status.*`).
+Fonts: Odia and Assamese need a device with those scripts installed (all current Android and iOS phones have them).
+
+**Adding or fixing a language:** copy `locales/en.js` to `locales/<code>.js`, translate the values (keep `{placeholders}` exactly), add the code and
+its name to `LANGUAGES` in `lib/i18n.jsx`, then run `npm run check:i18n`. That check fails if any key is missing or extra, if a placeholder
+changed, or if the code uses a key that does not exist; the test-suite runs the same checks.
+
 ## Roadmap (not built yet)
 SMS/push alerts · ML risk model service · real identity verification provider · multilingual UI · heat-maps & exportable reports ·
 refresh token in `httpOnly` cookie · per-guide tourist scoping.
