@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 
-vi.mock('../components/MapView', () => ({ default: () => <div data-testid="map" />, ZoneLegend: () => null, ZONE_COLORS: {} }))
+vi.mock('../components/MapView', () => ({ default: () => <div data-testid="map" />, ZoneLegend: () => null, ServiceLegend: () => null, ZONE_COLORS: {} }))
 vi.mock('../hooks/useSocket', () => ({ useSocket: () => {} }))
 import App from '../App'
 

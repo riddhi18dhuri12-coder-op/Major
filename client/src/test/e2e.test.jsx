@@ -9,6 +9,7 @@ vi.mock('../components/MapView', () => ({
     </div>
   ),
   ZoneLegend: () => null,
+  ServiceLegend: () => null,
   ZONE_COLORS: {},
 }))
 // Sockets are covered by the server test-suite; here we exercise the REST flows through the real UI.
