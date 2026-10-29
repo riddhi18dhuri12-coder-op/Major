@@ -5,6 +5,7 @@ process.env.JWT_REFRESH_SECRET ||= "test-refresh-secret-test-refresh-secret-02";
 const base = process.env.TEST_MONGODB_URI || "mongodb://127.0.0.1:27017";
 process.env.MONGODB_URI = `${base.replace(/\/$/, "")}/sts_test_${Date.now()}`;
 process.env.SCHEDULER_ENABLED = "false";
+process.env.AUTO_ZONES = "false"; // automatic zones are switched on per test
 process.env.CHECKIN_INTERVAL_HOURS = "12";
 process.env.STALE_LOCATION_MINUTES = "30";
 

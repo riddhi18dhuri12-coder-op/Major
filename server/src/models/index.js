@@ -218,6 +218,10 @@ const Zone = mongoose.model(
   )
 );
 
+// Cached OpenStreetMap-derived zones for one ~6 km cell (see services/autoZones.js). Re-fetched after a week.
+const autoZoneCellSchema = new Schema({ key: { type: String, required: true, unique: true }, zones: { type: [Schema.Types.Mixed], default: [] }, fetched_at: { type: Date, default: Date.now, index: { expireAfterSeconds: 7 * 86400 } } });
+const AutoZoneCell = mongoose.model("AutoZoneCell", autoZoneCellSchema);
+
 const ResponseUnit = mongoose.model(
   "ResponseUnit",
   new Schema(
@@ -279,4 +283,4 @@ async function nextSeq(name) {
   return c.seq;
 }
 
-module.exports = { AuditLog, Authority, Zone, ResponseUnit, ProofBlock, Company, Guide, Tourist, Trip, TripMember, Location, Incident, SafetyCheck, TravelSession, EmergencyContact, Notification, Counter, RefreshToken, SchedulerLock, nextSeq };
+module.exports = { AutoZoneCell, AuditLog, Authority, Zone, ResponseUnit, ProofBlock, Company, Guide, Tourist, Trip, TripMember, Location, Incident, SafetyCheck, TravelSession, EmergencyContact, Notification, Counter, RefreshToken, SchedulerLock, nextSeq };

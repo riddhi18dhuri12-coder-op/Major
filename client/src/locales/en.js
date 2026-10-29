@@ -196,6 +196,10 @@ export default {
   'zones.turnOn': 'Turn on location sharing to see where you are.',
   'zones.all': 'All active zones',
   'zones.none': 'No zones have been defined yet.',
+  'zones.auto': 'Automatic zones',
+  'zones.autoSub': 'Zones created automatically from OpenStreetMap places (police, hospitals, rest stops, cliffs, restricted land) and from recent incident reports, so you are covered wherever you travel. Zones drawn by the authorities always take priority.',
+  'zones.autoCount': '{n} automatic zones around you',
+  'zones.autoLegend': 'Dashed = automatic',
 
   // journey
   'j.desc': 'Your trips, independent travel and route safety.',

@@ -2,7 +2,7 @@ const env = require("../config/env");
 const { Tourist, Location, Incident, TravelSession, Trip, TripMember, nextSeq } = require("../models");
 const { zonesAt } = require("./geo");
 const { assessRisk, stationaryMinutes } = require("./risk");
-const { activeZones } = require("./zones");
+const { zonesFor } = require("./zones");
 const { notify } = require("./notify");
 const { emitToCompany, emitToAuthority, emitToTourist } = require("./realtime");
 const { pub } = require("../utils/serialize");
@@ -21,8 +21,10 @@ const localHour = (d = new Date()) => new Date(d.getTime() + (IST_OFFSET_MIN + d
 /** Recompute and store one tourist's risk. Returns { risk, changed } */
 async function refreshRisk(tourist, { zone, now = new Date() } = {}) {
   const pts = await Location.find({ tourist_id: tourist._id }).sort({ recorded_at: -1 }).limit(40).lean();
-  const zones = await activeZones();
-  const here = tourist.last_location?.latitude != null ? zone ?? zonesAt(tourist.last_location, zones)[0] ?? null : zone ?? null;
+  const loc = tourist.last_location?.latitude != null ? tourist.last_location : null;
+  const found = loc ? await zonesFor(loc) : { manual: [], auto: [], here: null };
+  const zones = [...found.manual, ...found.auto];
+  const here = zone ?? found.here;
   const lastAt = tourist.last_location?.recorded_at;
   const [activeSos, overdueTravel, nearby] = await Promise.all([
     Incident.exists({ tourist_id: tourist._id, type: "SOS", status: { $in: OPEN_STATES } }),
@@ -32,7 +34,7 @@ async function refreshRisk(tourist, { zone, now = new Date() } = {}) {
   const routeFresh = tourist.route_state?.updated_at && now - new Date(tourist.route_state.updated_at) < ROUTE_STATE_FRESH_MS;
   const r = assessRisk({
     zone: here,
-    atRestPoint: zones.some((z) => z.type === "REST_POINT" && tourist.last_location?.latitude != null && zonesAt(tourist.last_location, [z]).length),
+    atRestPoint: !!loc && zones.some((z) => z.type === "REST_POINT" && zonesAt(loc, [z]).length),
     stationaryMin: stationaryMinutes(pts, now),
     minutesSinceUpdate: lastAt && tourist.location_sharing ? (now - new Date(lastAt)) / 60000 : 0,
     localHour: localHour(now),
@@ -53,9 +55,7 @@ async function refreshRisk(tourist, { zone, now = new Date() } = {}) {
  * None of this creates an emergency - only the SOS button does.
  */
 async function processLocation(tourist, point) {
-  const zones = await activeZones();
-  const inside = zonesAt(point, zones);
-  const zone = inside[0] || null;
+  const zone = (await zonesFor(point)).here;
   const prev = tourist.current_zone?.id || null;
   const entered = zone && String(zone._id) !== prev;
 

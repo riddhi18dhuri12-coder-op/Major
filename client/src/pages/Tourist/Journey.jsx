@@ -6,6 +6,7 @@ import { api } from '../../lib/api'
 import { useLoad } from '../../hooks/useLoad'
 import { useTourist } from './TouristContext'
 import { useI18n } from '../../lib/i18n'
+import { useAutoZones, useAutoZonePref } from '../../lib/autoZones'
 
 function IndependentTravel() {
     const { t: tr, dateTime } = useI18n()
@@ -113,6 +114,8 @@ function PlannedRoute({ trips, zones }) {
     const { t: tr } = useI18n()
     const active = (trips || []).find((x) => x.status === 'ACTIVE' && x.planned_route?.point_count >= 2)
     const detail = useLoad(() => (active ? api.get(`/trips/${active.id}`) : Promise.resolve(null)), [active?.id])
+    const [autoOn] = useAutoZonePref()
+    const auto = useAutoZones(t.position, autoOn)
     if (!active) return null
     const route = detail.data?.planned_route
     const state = t.live?.route
@@ -122,7 +125,7 @@ function PlannedRoute({ trips, zones }) {
             {detail.loading ? <Loading /> : (
                 <>
                     {badge && <p className={`mb-3 rounded-lg border p-3 text-sm ${badge[0]}`}>{tr(badge[1])}{state.level !== 'ON_ROUTE' ? ` ${tr('j.awayBy', { n: state.distance_m })}` : ''}.</p>}
-                    <MapView zones={zones} height="h-72" me={t.position} lines={route?.points?.length ? [{ id: 'route', points: route.points, name: tr('j.planned') }] : []} />
+                    <MapView zones={zones} autoZones={auto.zones} height="h-72" me={t.position} lines={route?.points?.length ? [{ id: 'route', points: route.points, name: tr('j.planned') }] : []} />
                     {!t.position && <p className="mt-3 text-xs text-slate-500">{tr('j.turnOnRoute')}</p>}
                 </>
             )}

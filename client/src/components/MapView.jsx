@@ -42,7 +42,7 @@ function Fit({ points, focus }) {
  * onMapClick: pick a point (zone creation). draft: zone being drawn.
  * lines: planned routes to draw, [{ id, points: [{latitude, longitude}], color?, dashed?, name? }]. markers: extra labelled points [{ id, latitude, longitude, label, emoji? }].
  */
-export default function MapView({ zones = [], tourists = [], incidents = [], units = [], me = null, draft = null, lines = [], markers = [], services = [], onMapClick, onSelectIncident, height = 'h-80', focus = null, fit = true }) {
+export default function MapView({ zones = [], tourists = [], incidents = [], units = [], me = null, draft = null, lines = [], markers = [], services = [], autoZones = [], onMapClick, onSelectIncident, height = 'h-80', focus = null, fit = true }) {
   const located = tourists.filter((t) => t.last_location?.latitude != null)
   const incLoc = incidents.filter((i) => i.latitude != null)
   const unitLoc = units.filter((u) => u.location?.latitude != null)
@@ -56,10 +56,11 @@ export default function MapView({ zones = [], tourists = [], incidents = [], uni
         {fit && <Fit points={pts} focus={focus} />}
         {onMapClick && <Clicker onClick={onMapClick} />}
 
-        {zones.map((z) => {
+        {[...autoZones, ...zones].map((z) => {
           const color = ZONE_COLORS[z.type]
-          const style = { color, weight: 2, fillOpacity: z.active === false ? 0.04 : 0.18, dashArray: z.active === false ? '6 6' : undefined }
-          const popup = <Popup><b>{z.name}</b><br />{z.type.replace('_', ' ')}{z.description ? <><br />{z.description}</> : null}</Popup>
+          const auto = z.source === 'AUTO'
+          const style = auto ? { color, weight: 1.5, fillOpacity: 0.08, dashArray: '3 6' } : { color, weight: 2, fillOpacity: z.active === false ? 0.04 : 0.18, dashArray: z.active === false ? '6 6' : undefined }
+          const popup = <Popup><b>{z.name}</b><br />{z.type.replace('_', ' ')}{z.description ? <><br />{z.description}</> : null}{auto && z.basis ? <><br /><i>Automatic zone · {z.basis}</i></> : null}</Popup>
           return z.shape.kind === 'CIRCLE'
             ? <Circle key={z.id} center={[z.shape.center.latitude, z.shape.center.longitude]} radius={z.shape.radius_m} pathOptions={style}>{popup}</Circle>
             : <Polygon key={z.id} positions={z.shape.polygon.map((p) => [p.latitude, p.longitude])} pathOptions={style}>{popup}</Polygon>
@@ -116,13 +117,14 @@ export function ServiceLegend() {
   )
 }
 
-export function ZoneLegend() {
-  const { te } = useI18n()
+export function ZoneLegend({ auto = false }) {
+  const { t, te } = useI18n()
   return (
     <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-400">
       {Object.entries(ZONE_COLORS).map(([k, c]) => (
         <span key={k} className="flex items-center gap-2"><i className="inline-block h-3 w-3 rounded-full" style={{ background: c }} />{te(k)}</span>
       ))}
+      {auto && <span className="flex items-center gap-2"><i className="inline-block h-3 w-5 rounded-sm border border-dashed border-slate-400" />{t('zones.autoLegend')}</span>}
     </div>
   )
 }

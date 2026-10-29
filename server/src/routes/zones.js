@@ -3,6 +3,7 @@ const { z } = require("zod");
 const { Zone } = require("../models");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { invalidateZones } = require("../services/zones");
+const { autoZonesNear, isEnabled } = require("../services/autoZones");
 const { audit } = require("../services/audit");
 const { emitToAuthority } = require("../services/realtime");
 const { pub, pubList } = require("../utils/serialize");
@@ -30,6 +31,14 @@ const body = z.object({
 router.get("/", async (req, res) => {
   const filter = req.query.all === "true" && req.user.role === "authority" ? {} : { active: true };
   res.json(pubList(await Zone.find(filter).sort({ created_at: -1 }).limit(1000)));
+});
+
+// Automatic zones around a position (OpenStreetMap places + incident hotspots). Read-only; authority-drawn zones still take precedence.
+router.get("/auto", async (req, res) => {
+  const q = z.object({ lat: z.coerce.number().min(-90).max(90), lon: z.coerce.number().min(-180).max(180) }).parse(req.query);
+  if (!isEnabled()) return res.json({ enabled: false, zones: [] });
+  const zones = await autoZonesNear({ latitude: q.lat, longitude: q.lon }, { wait: true });
+  res.json({ enabled: true, zones });
 });
 
 router.post("/", requireRole("authority"), async (req, res) => {
