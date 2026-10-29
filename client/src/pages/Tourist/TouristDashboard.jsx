@@ -5,6 +5,7 @@ import MapView, { ZoneLegend, ServiceLegend } from '../../components/MapView'
 import SelfResolve from '../../components/SelfResolve'
 import { markNearest } from '../../components/NearbyHelp'
 import { useNearbyServices } from '../../lib/nearby'
+import { useAutoZones, useAutoZonePref } from '../../lib/autoZones'
 import { StatCard, Panel, Button, Modal, StatusBadge, useToast } from '../../components/ui'
 import { api } from '../../lib/api'
 import { useLoad } from '../../hooks/useLoad'
@@ -57,6 +58,8 @@ function TouristDashboard() {
     const zones = useLoad(() => api.get('/zones'))
     const [busy, setBusy] = useState(false)
     const nearby = useNearbyServices(t.position)
+    const [autoOn] = useAutoZonePref()
+    const auto = useAutoZones(t.position, autoOn)
     const p = t.profile
 
     if (!p) return <p className="py-20 text-center text-slate-500">{tr('dash.loading')}</p>
@@ -96,8 +99,8 @@ function TouristDashboard() {
 
             <div className="mt-8 grid gap-6 lg:grid-cols-3">
                 <Panel className="lg:col-span-2" title={tr('dash.journey')} action={<span className="rounded-full bg-cyan-500/10 px-3 py-1 text-xs text-cyan-400">{p.location_sharing ? tr('dash.monitoringOn') : tr('dash.monitoringOff')}</span>}>
-                    <MapView zones={zones.data || []} me={t.position} services={markNearest(nearby.services)} height="h-72" />
-                    <ZoneLegend />
+                    <MapView zones={zones.data || []} me={t.position} services={markNearest(nearby.services)} autoZones={auto.zones} height="h-72" />
+                    <ZoneLegend auto={auto.zones.length > 0} />
                     {nearby.services.length > 0 && <ServiceLegend />}
                     <div className="mt-4 flex flex-wrap gap-3">
                         <Button onClick={toggleGps} disabled={busy} variant={p.location_sharing ? 'secondary' : 'primary'}>{p.location_sharing ? tr('dash.stopSharing') : tr('dash.shareLocation')}</Button>

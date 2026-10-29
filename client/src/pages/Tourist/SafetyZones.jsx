@@ -2,6 +2,8 @@ import DashboardHeader from '../../components/DashboardHeader'
 import MapView, { ZoneLegend, ServiceLegend } from '../../components/MapView'
 import NearbyHelp, { markNearest } from '../../components/NearbyHelp'
 import { useNearbyServices } from '../../lib/nearby'
+import { useAutoZones, useAutoZonePref } from '../../lib/autoZones'
+import AutoZoneToggle from '../../components/AutoZoneToggle'
 import { Panel, StatusBadge, Loading, ErrorNote, Empty } from '../../components/ui'
 import { useI18n } from '../../lib/i18n'
 import { api } from '../../lib/api'
@@ -13,15 +15,18 @@ export default function SafetyZones() {
     const { t: tr, te } = useI18n()
     const zones = useLoad(() => api.get('/zones'))
     const nearby = useNearbyServices(t.position)
+    const [autoOn, setAutoOn] = useAutoZonePref()
+    const auto = useAutoZones(t.position, autoOn)
     const here = t.live.zone?.name ? t.live.zone : null
     return (
         <>
             <DashboardHeader portal={tr('portal.tourist')} title={tr('nav.zones')} description={tr('zones.desc')} />
             <div className="mt-8 space-y-6">
                 <Panel title={tr('zones.map')} subtitle={here ? tr('zones.in', { name: here.name, type: te(here.type) }) : tr('zones.turnOn')}>
-                    {zones.loading ? <Loading /> : zones.error ? <ErrorNote message={zones.error} onRetry={zones.reload} /> : <MapView zones={zones.data} me={t.position} services={markNearest(nearby.services)} height="h-96" />}
-                    <ZoneLegend />
+                    {zones.loading ? <Loading /> : zones.error ? <ErrorNote message={zones.error} onRetry={zones.reload} /> : <MapView zones={zones.data} me={t.position} services={markNearest(nearby.services)} autoZones={auto.zones} height="h-96" />}
+                    <ZoneLegend auto={autoOn && auto.zones.length > 0} />
                     {nearby.services.length > 0 && <ServiceLegend />}
+                    {auto.enabled && <AutoZoneToggle on={autoOn} onChange={setAutoOn} auto={auto} />}
                 </Panel>
                 <NearbyHelp position={t.position} nearby={nearby} showMap={false} />
                 <Panel title={tr('zones.all')}>

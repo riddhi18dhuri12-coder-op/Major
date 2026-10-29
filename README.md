@@ -162,6 +162,15 @@ changed, or if the code uses a key that does not exist; the test-suite runs the 
 - **Close my own emergency:** while a tourist has an open SOS/report, the dashboard and Emergency page show *Issue solved — stop alert* and *Pressed by mistake* (`PUT /api/incidents/:id/self-resolve`). The case closes as RESOLVED or FALSE_ALARM, any assigned unit is freed, the tourist returns to Safe, and the agency and authority get a notification.
 - **Nearby hospitals and police stations:** red-cross markers for hospitals, blue-shield markers for police stations; the nearest of each pulses. Shown on the dashboard, Safety Zones and Emergency pages with distance and a directions link. Data comes live from OpenStreetMap (Overpass API) and is cached on the device for a day per ~2 km area, so it still works after signal is lost. OSM coverage varies by area.
 
+## Automatic zones (independent travel)
+Authority-drawn zones only cover places someone drew. So travellers are also covered **anywhere** by zones created automatically (shown with dashed outlines):
+- **OpenStreetMap places → zones, by plain rules** (`server/src/services/autoZones.js`): police stations, hospitals and fire stations = *Safe*; rest areas, fuel, bus stations, hotels = *Rest point*; cliffs, waterfalls, beaches, quarries, level crossings, bars = *Caution*; military land, prisons, airfields = *Restricted*; mine shafts and mapped hazards = *Danger*.
+- **Incident history → Danger hotspots:** 3 or more reports (not false alarms) within 400 m in the last 30 days (`AUTO_ZONE_HOTSPOT_MIN`). Only the circle is shown, never who reported.
+- **Authority zones always win.** Automatic zones apply only where no authority zone covers the point. They feed the same geofence, warnings, risk score and "rest point" logic as drawn zones.
+- Data is fetched per ~6 km area from the Overpass API, cached in MongoDB for a week, and loaded in the background, so a location update never waits for it. The first fix in a brand-new area has no automatic zones yet.
+- Settings (`server/.env`): `AUTO_ZONES=true|false`, `OVERPASS_URL` (comma-separated list), `AUTO_ZONE_HOTSPOT_MIN`. Tourists can hide the layer with the *Automatic zones* switch on the Safety Zones page.
+- This is rule-based and explainable, not machine learning; every automatic zone says what it was based on. Coverage depends on how well OpenStreetMap maps the area.
+
 ## Roadmap (not built yet)
 SMS/push alerts · ML risk model service · real identity verification provider · multilingual UI · heat-maps & exportable reports ·
 refresh token in `httpOnly` cookie · per-guide tourist scoping.

@@ -19,6 +19,9 @@ const schema = z.object({
   STALE_LOCATION_MINUTES: z.coerce.number().positive().default(30),
   LOCATION_RETENTION_DAYS: z.coerce.number().positive().default(30),
   SCHEDULER_ENABLED: bool,
+  AUTO_ZONES: bool, // automatic zones from OpenStreetMap + incident history
+  OVERPASS_URL: z.string().default("https://overpass-api.de/api/interpreter,https://overpass.kumi.systems/api/interpreter"),
+  AUTO_ZONE_HOTSPOT_MIN: z.coerce.number().int().min(2).default(3),
   SCHEDULER_INTERVAL_SECONDS: z.coerce.number().positive().default(60),
 });
 
@@ -31,5 +34,6 @@ if (!parsed.success) {
 
 const env = parsed.data;
 env.corsOrigins = env.CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean);
+env.overpassUrls = env.OVERPASS_URL.split(",").map((s) => s.trim()).filter(Boolean);
 env.isProd = env.NODE_ENV === "production";
 module.exports = env;
