@@ -182,7 +182,7 @@ const notificationSchema = new Schema(
     company_id: { type: ObjectId, ref: "Company", default: null },
     tourist_id: { type: ObjectId, ref: "Tourist", default: null },
     message: { type: String, required: true },
-    type: { type: String, enum: ["SOS", "OVERDUE_TRAVEL", "STALE_LOCATION", "MISSED_CHECKIN", "ZONE_ALERT", "HIGH_RISK", "VERIFICATION", "ID_EXPIRED", "ID_RENEWED", "ROUTE_DEVIATION"], required: true },
+    type: { type: String, enum: ["SOS", "OVERDUE_TRAVEL", "STALE_LOCATION", "MISSED_CHECKIN", "ZONE_ALERT", "HIGH_RISK", "VERIFICATION", "ID_EXPIRED", "ID_RENEWED", "ROUTE_DEVIATION", "SOS_CLEARED"], required: true },
     read: { type: Boolean, default: false },
   },
   opts

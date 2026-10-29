@@ -3,6 +3,7 @@ import { api } from '../../lib/api'
 import { outbox } from '../../lib/offline'
 import { useSocket } from '../../hooks/useSocket'
 import { useToast } from '../../components/ui'
+import { useI18n } from '../../lib/i18n'
 
 const Ctx = createContext(null)
 // eslint-disable-next-line react-refresh/only-export-components
@@ -16,6 +17,7 @@ const POST_EVERY_MS = 20_000
  */
 export function TouristProvider({ children }) {
   const toast = useToast()
+  const { t, te, tm } = useI18n()
   const [profile, setProfile] = useState(null)
   const [verification, setVerification] = useState(null)
   const [position, setPosition] = useState(null)
@@ -39,8 +41,8 @@ export function TouristProvider({ children }) {
     if (!outbox.count()) return
     const n = await outbox.flush((item) => (item.kind === 'sos' ? api.post('/incidents/sos', item.body) : api.post('/safety/check-in', item.body)))
     setPending(outbox.count())
-    if (n) { toast(`Sent ${n} saved message${n > 1 ? 's' : ''} from when you were offline.`, 'green'); reload().catch(() => {}) }
-  }, [toast, reload])
+    if (n) { toast(t('toast.queuedSent', { n }), 'green'); reload().catch(() => {}) }
+  }, [toast, reload, t])
   useEffect(() => {
     flush()
     window.addEventListener('online', flush)
@@ -63,14 +65,14 @@ export function TouristProvider({ children }) {
   }, [])
 
   const startWatch = useCallback(() => {
-    if (!('geolocation' in navigator)) return setGpsError('This device does not support GPS.')
+    if (!('geolocation' in navigator)) return setGpsError('gps.unsupported')
     if (watchId.current != null) return
     watchId.current = navigator.geolocation.watchPosition(
       (p) => {
         const pos = { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy }
         setPosition(pos); setGpsError(null); send(pos)
       },
-      (e) => setGpsError(e.code === 1 ? 'Location permission was denied. Allow it in your browser settings.' : 'Could not get your location.'),
+      (e) => setGpsError(e.code === 1 ? 'gps.denied' : 'gps.failed'),
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
     )
   }, [send])
@@ -112,16 +114,16 @@ export function TouristProvider({ children }) {
 
   // ---- live alerts from the server ---------------------------------------------------
   useSocket({
-    'zone:warning': (d) => { toast(`🚧 ${d.message}`, 'amber'); setLive((l) => ({ ...l, zone: d.zone, warnings: [d.message] })) },
-    'route:warning': (d) => { toast(`🧭 ${d.message}`, 'amber') },
-    'route:deviation': (d) => { toast(`🧭 ${d.message}`, 'red'); reload().catch(() => {}) },
-    'route:back': (d) => { toast(`✅ ${d.message}`, 'green') },
-    'risk:warning': (d) => { toast(`⚠️ Your risk level is now ${d.level}: ${d.factors[0]}`, 'amber'); reload().catch(() => {}) },
-    'checkin:reminder': (d) => { toast(`🕒 Please tap "I'm Safe" — it has been over ${d.interval_hours} hours.`, 'amber'); reload().catch(() => {}) },
-    'travel:overdue': () => { toast('⏰ You are past your expected return time. Open My Journey to check in.', 'red'); reload().catch(() => {}) },
-    'verification:updated': (d) => { toast(`🪪 Verification ${d.status.toLowerCase()}${d.digital_id ? ` — your Digital ID is ${d.digital_id}` : ''}`, d.status === 'VERIFIED' ? 'green' : 'amber'); reload().catch(() => {}) },
-    'id:validity': (d) => { toast(d.status === 'EXPIRED' ? `🪪 Your Digital ID ${d.digital_id} has expired — your visit has ended.` : `🪪 Your Digital ID ${d.digital_id} is valid again.`, d.status === 'EXPIRED' ? 'amber' : 'green'); reload().catch(() => {}) },
-    'incident:updated': () => { toast('Your emergency report was updated.', 'cyan') },
+    'zone:warning': (d) => { toast(`🚧 ${tm(d.message)}`, 'amber'); setLive((l) => ({ ...l, zone: d.zone, warnings: [d.message] })) },
+    'route:warning': (d) => { toast(`🧭 ${tm(d.message)}`, 'amber') },
+    'route:deviation': (d) => { toast(`🧭 ${tm(d.message)}`, 'red'); reload().catch(() => {}) },
+    'route:back': (d) => { toast(`✅ ${tm(d.message)}`, 'green') },
+    'risk:warning': (d) => { toast(t('toast.risk', { level: te(d.level), factor: tm(d.factors[0]) }), 'amber'); reload().catch(() => {}) },
+    'checkin:reminder': (d) => { toast(t('toast.checkin', { n: d.interval_hours }), 'amber'); reload().catch(() => {}) },
+    'travel:overdue': () => { toast(t('toast.overdue'), 'red'); reload().catch(() => {}) },
+    'verification:updated': (d) => { toast(d.digital_id ? t('toast.verificationId', { status: te(d.status), id: d.digital_id }) : t('toast.verification', { status: te(d.status) }), d.status === 'VERIFIED' ? 'green' : 'amber'); reload().catch(() => {}) },
+    'id:validity': (d) => { toast(t(d.status === 'EXPIRED' ? 'toast.idExpired' : 'toast.idValid', { id: d.digital_id }), d.status === 'EXPIRED' ? 'amber' : 'green'); reload().catch(() => {}) },
+    'incident:updated': () => { toast(t('toast.incidentUpdated'), 'cyan') },
   })
 
   return <Ctx.Provider value={{ profile, verification, position, live, gpsError, pending, reload, setSharing, sendSos, checkIn, flush }}>{children}</Ctx.Provider>

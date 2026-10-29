@@ -45,7 +45,7 @@ function AgencyDashboard() {
 
             <div className="mt-8 grid gap-6 lg:grid-cols-3">
                 <Panel className="lg:col-span-2" title="Tourist Management" subtitle="Manage tourists associated with your agency."
-                    action={user.role === 'company' && <Link to="/agency/tourists" className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400">Add Tourist</Link>}>
+                    action={user.role === 'company' && <Link to="/agency/tourists" className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-[#020617] hover:bg-cyan-400">Add Tourist</Link>}>
                     <Table rows={T.slice(0, 6)} empty="No tourists yet. Add one from a trip." columns={[
                         { title: 'Tourist', render: (t) => <span><b className="text-slate-200">{t.name}</b><br /><span className="text-xs text-slate-500">{t.tourist_code}</span></span> },
                         { title: 'Type', render: (t) => label(t.tourist_type) },
@@ -64,7 +64,7 @@ function AgencyDashboard() {
                 </Panel>
             </div>
 
-            <Panel className="mt-8" title="Live tourist map" subtitle="Last known positions of tourists who share their location.">
+            <Panel className="mt-8" title="Live tourist map" subtitle={`Last known positions of tourists who allow GPS tracking${T ? ` — ${T.filter((x) => x.location_sharing).length} of ${T.length} sharing now` : ''}.`}>
                 <MapView zones={zones.data || []} tourists={T} incidents={incidents.data || []} height="h-80" />
             </Panel>
 

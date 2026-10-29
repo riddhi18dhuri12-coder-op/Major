@@ -1,6 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './lib/auth'
+import { I18nProvider } from './lib/i18n'
+import { TextSizeProvider } from './lib/textSize'
+import { ThemeProvider } from './lib/theme'
 import { ToastProvider } from './components/ui'
 import Guard from './components/Guard'
 
@@ -35,13 +38,16 @@ const ActiveIncidents = lazy(() => import('./pages/Emergency/ActiveIncidents'))
 const MyUnit = lazy(() => import('./pages/Emergency/MyUnit'))
 const OperationsMap = lazy(() => import('./pages/Emergency/OperationsMap'))
 
-const tourist = (el) => <Guard roles={['tourist']} portal="tourist"><TouristProvider>{el}</TouristProvider></Guard>
+const tourist = (el) => <Guard roles={['tourist']} portal="tourist" wrap={TouristProvider}>{el}</Guard>
 const agency = (el, roles = ['company', 'guide']) => <Guard roles={roles} portal="agency">{el}</Guard>
 const authority = (el) => <Guard roles={['authority']} portal="authority">{el}</Guard>
-const emergency = (el) => <Guard roles={['responder']} portal="emergency"><ResponderProvider>{el}</ResponderProvider></Guard>
+const emergency = (el) => <Guard roles={['responder']} portal="emergency" wrap={ResponderProvider}>{el}</Guard>
 
 function App() {
   return (
+    <I18nProvider>
+    <TextSizeProvider>
+    <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
@@ -82,6 +88,9 @@ function App() {
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
+    </ThemeProvider>
+    </TextSizeProvider>
+    </I18nProvider>
   )
 }
 

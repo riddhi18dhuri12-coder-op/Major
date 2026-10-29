@@ -1,4 +1,5 @@
 import { useEffect, useState, createContext, useContext, useCallback } from 'react'
+import { useI18n } from '../lib/i18n'
 
 // ---- Cards / stats -------------------------------------------------------------------
 export function StatCard({ title, value, description, tone = 'cyan' }) {
@@ -53,15 +54,16 @@ const toneFor = {
 }
 export const label = (v) => (v ? String(v).replace(/_/g, ' ').toLowerCase().replace(/^\w|\s\w/g, (c) => c.toUpperCase()) : '-')
 export function StatusBadge({ value }) {
-  return <Badge tone={toneFor[value] || 'slate'}>{label(value)}</Badge>
+  const { te } = useI18n() // known statuses are translated; anything else falls back to the English label
+  return <Badge tone={toneFor[value] || 'slate'}>{te(value)}</Badge>
 }
 
 // ---- Buttons / fields -----------------------------------------------------------------
 export function Button({ variant = 'primary', className = '', ...props }) {
   const styles = {
-    primary: 'bg-cyan-500 text-slate-950 hover:bg-cyan-400',
+    primary: 'bg-cyan-500 text-[#020617] hover:bg-cyan-400',
     secondary: 'border border-slate-700 text-slate-200 hover:border-cyan-500 hover:text-cyan-400',
-    danger: 'bg-red-600 text-white hover:bg-red-500',
+    danger: 'bg-red-600 text-[#fff] hover:bg-red-500',
     ghost: 'text-slate-400 hover:text-cyan-400',
   }[variant]
   return <button type="button" {...props} className={`rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${styles} ${className}`} />
@@ -83,6 +85,7 @@ export const Textarea = (props) => <textarea rows={3} {...props} className={inpu
 
 // ---- Modal ------------------------------------------------------------------------------
 export function Modal({ title, onClose, children, wide }) {
+  const { t } = useI18n()
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -93,7 +96,7 @@ export function Modal({ title, onClose, children, wide }) {
       <div role="dialog" aria-label={title} className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl ${wide ? 'max-w-3xl' : 'max-w-md'}`}>
         <div className="mb-5 flex items-center justify-between">
           <h3 className="text-xl font-semibold">{title}</h3>
-          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white">✕</button>
+          <button onClick={onClose} aria-label={t('common.close')} className="text-slate-400 hover:text-white">✕</button>
         </div>
         {children}
       </div>
@@ -102,7 +105,8 @@ export function Modal({ title, onClose, children, wide }) {
 }
 
 // ---- Tables -----------------------------------------------------------------------------
-export function Table({ columns, rows, empty = 'Nothing here yet.', onRowClick }) {
+export function Table({ columns, rows, empty, onRowClick }) {
+  const { t } = useI18n()
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
@@ -110,7 +114,7 @@ export function Table({ columns, rows, empty = 'Nothing here yet.', onRowClick }
           <tr>{columns.map((c) => <th key={c.key || c.title} className="px-4 py-3 font-medium">{c.title}</th>)}</tr>
         </thead>
         <tbody>
-          {rows.length === 0 && <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-slate-500">{empty}</td></tr>}
+          {rows.length === 0 && <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-slate-500">{empty ?? t('common.empty')}</td></tr>}
           {rows.map((r, i) => (
             <tr key={r.id || i} onClick={onRowClick ? () => onRowClick(r) : undefined} className={`border-b border-slate-800 ${onRowClick ? 'cursor-pointer hover:bg-slate-800/40' : ''}`}>
               {columns.map((c) => <td key={c.key || c.title} className="px-4 py-3 text-slate-300">{c.render ? c.render(r) : r[c.key]}</td>)}
@@ -123,12 +127,18 @@ export function Table({ columns, rows, empty = 'Nothing here yet.', onRowClick }
 }
 
 // ---- Page states --------------------------------------------------------------------------
-export const Loading = ({ text = 'Loading…' }) => <p className="py-10 text-center text-sm text-slate-500">{text}</p>
-export const ErrorNote = ({ message, onRetry }) => (
-  <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-    {message} {onRetry && <button onClick={onRetry} className="ml-2 underline">Retry</button>}
-  </div>
-)
+export function Loading({ text }) {
+  const { t } = useI18n()
+  return <p className="py-10 text-center text-sm text-slate-500">{text ?? t('common.loading')}</p>
+}
+export function ErrorNote({ message, onRetry }) {
+  const { t } = useI18n()
+  return (
+    <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+      {message} {onRetry && <button onClick={onRetry} className="ml-2 underline">{t('common.retry')}</button>}
+    </div>
+  )
+}
 export const Empty = ({ children }) => <p className="rounded-lg border border-dashed border-slate-700 p-6 text-center text-sm text-slate-500">{children}</p>
 
 export const timeAgo = (d) => {

@@ -194,6 +194,32 @@ describe("location", () => {
   });
 });
 
+describe("tourist closes own emergency", () => {
+  test("self-resolve stops the alert, frees status, notifies, and is scoped to the owner", async () => {
+    const co = await h.newCompany("selfres");
+    const t = await h.newTouristOnTrip(co, "selfres");
+    const other = await h.newTouristOnTrip(co, "selfres2");
+    const sos = (await api().post("/api/incidents/sos").set(auth(t.token)).send({ latitude: 19, longitude: 72 })).body;
+    assert.equal((await api().get(`/api/tourists/${t.tourist.id}`).set(auth(co.token))).body.status, "EMERGENCY");
+
+    // another tourist, and staff roles, cannot use it
+    assert.equal((await api().put(`/api/incidents/${sos.id}/self-resolve`).set(auth(other.token)).send({})).status, 404);
+    assert.equal((await api().put(`/api/incidents/${sos.id}/self-resolve`).set(auth(co.token)).send({})).status, 403);
+
+    const r = await api().put(`/api/incidents/${sos.id}/self-resolve`).set(auth(t.token)).send({ outcome: "RESOLVED", note: "got help from a shopkeeper" });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.status, "RESOLVED");
+    assert.match(r.body.updates.at(-1).note, /Closed by the tourist/);
+    assert.equal((await api().get(`/api/tourists/${t.tourist.id}`).set(auth(co.token))).body.status, "NORMAL");
+    assert.ok((await api().get("/api/notifications").set(auth(co.token))).body.some((n) => n.type === "SOS_CLEARED"));
+
+    // already closed -> 400; false-alarm outcome works on a new SOS
+    assert.equal((await api().put(`/api/incidents/${sos.id}/self-resolve`).set(auth(t.token)).send({})).status, 400);
+    const sos2 = (await api().post("/api/incidents/sos").set(auth(t.token)).send({})).body;
+    assert.equal((await api().put(`/api/incidents/${sos2.id}/self-resolve`).set(auth(t.token)).send({ outcome: "FALSE_ALARM" })).body.status, "FALSE_ALARM");
+  });
+});
+
 describe("incidents & SOS", () => {
   test("SOS lifecycle", async () => {
     const co = await h.newCompany("sos");

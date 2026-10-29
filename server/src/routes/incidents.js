@@ -7,7 +7,7 @@ const { emitToCompany, emitToAuthority, emitToUnit } = require("../services/real
 const { notify } = require("../services/notify");
 const { pub } = require("../utils/serialize");
 const { oid } = require("../utils/ids");
-const { notFound } = require("../utils/errors");
+const { notFound, bad } = require("../utils/errors");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -137,6 +137,22 @@ router.put("/:id/status", requireRole("company", "guide", "authority"), async (r
   const incident = await Incident.findOne({ _id: oid(req.params.id, "Incident"), ...scopeFor(req.user) });
   if (!incident) throw notFound("Incident not found");
   res.json(pub(await applyStatus(incident, b, req.user.name)));
+});
+
+// ---- Tourist closes their own case: "the problem is solved" / "pressed by mistake" -------------
+// Stops the alert for the agency, the authorities and any assigned unit (which is freed).
+router.put("/:id/self-resolve", requireRole("tourist"), async (req, res) => {
+  const b = z.object({ outcome: z.enum(["RESOLVED", "FALSE_ALARM"]).default("RESOLVED"), note: z.string().trim().max(500).optional() }).parse(req.body || {});
+  const incident = await Incident.findOne({ _id: oid(req.params.id, "Incident"), tourist_id: req.user.id });
+  if (!incident) throw notFound("Incident not found");
+  if (!OPEN_STATES.includes(incident.status)) throw bad("This case is already closed");
+
+  const tourist = await Tourist.findById(req.user.id);
+  const what = b.outcome === "RESOLVED" ? "the problem is solved" : "the alert was sent by mistake";
+  const note = `Closed by the tourist: ${what}${b.note ? ` — ${b.note}` : ""}`;
+  await applyStatus(incident, { status: b.outcome, note }, tourist.name);
+  await notify({ company_id: tourist.company_id, tourist_id: tourist._id, type: "SOS_CLEARED", authority: true, message: `${tourist.name} (${tourist.tourist_code}) reports ${what} — ${incident.incident_code} closed` });
+  res.json(pub(incident));
 });
 
 module.exports = router;
